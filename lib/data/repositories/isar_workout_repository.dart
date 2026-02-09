@@ -36,12 +36,10 @@ class IsarWorkoutRepository implements WorkoutRepository {
     final to = normalizeLocalDate(end);
 
     final all = await _getAllSessions();
-    return all
-        .where((session) {
-          final date = normalizeLocalDate(session.date);
-          return !date.isBefore(from) && !date.isAfter(to);
-        })
-        .toList();
+    return all.where((session) {
+      final date = normalizeLocalDate(session.date);
+      return !date.isBefore(from) && !date.isAfter(to);
+    }).toList();
   }
 
   @override
@@ -139,9 +137,7 @@ class IsarWorkoutRepository implements WorkoutRepository {
   Future<List<ExerciseEntryModel>> getEntriesForSession(Id sessionId) async {
     final all = await getAllEntries();
     final entries = all
-        .where(
-          (entry) => entry.workoutSessionId == sessionId,
-        )
+        .where((entry) => entry.workoutSessionId == sessionId)
         .toList();
 
     entries.sort((a, b) => a.createdAt.compareTo(b.createdAt));
@@ -201,6 +197,14 @@ class IsarWorkoutRepository implements WorkoutRepository {
         entry.updatedAt = now;
       }
       await _isar.exerciseEntries.putAll(entries);
+    });
+  }
+
+  @override
+  Future<void> clearAllUserData() async {
+    await _isar.writeTxn(() async {
+      await _isar.exerciseEntries.clear();
+      await _isar.workoutSessions.clear();
     });
   }
 

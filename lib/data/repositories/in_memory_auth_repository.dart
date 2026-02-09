@@ -13,6 +13,7 @@ class InMemoryAuthRepository implements AuthRepository {
       StreamController<AuthSession?>.broadcast();
 
   AuthSession? _currentSession;
+  bool _isDemoAccountDeleted = false;
 
   @override
   AuthSession? get currentSession => _currentSession;
@@ -30,6 +31,12 @@ class InMemoryAuthRepository implements AuthRepository {
   }) async {
     await Future<void>.delayed(const Duration(milliseconds: 250));
 
+    if (_isDemoAccountDeleted) {
+      throw const AuthException(
+        'This account has been deleted. Contact support to restore access.',
+      );
+    }
+
     final normalizedEmail = email.trim().toLowerCase();
     final normalizedPassword = password.trim();
 
@@ -45,6 +52,17 @@ class InMemoryAuthRepository implements AuthRepository {
     _currentSession = session;
     _sessionController.add(session);
     return session;
+  }
+
+  @override
+  Future<void> deleteAccount() async {
+    if (_currentSession == null) {
+      throw const AuthException('No active account to delete.');
+    }
+
+    _isDemoAccountDeleted = true;
+    _currentSession = null;
+    _sessionController.add(null);
   }
 
   @override

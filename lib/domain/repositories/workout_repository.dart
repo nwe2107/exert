@@ -37,4 +37,6 @@ abstract class WorkoutRepository {
   Future<void> deleteEntry(Id entryId);
 
   Future<void> deleteEntriesForSession(Id sessionId);
+
+  Future<void> clearAllUserData();
 }

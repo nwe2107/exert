@@ -6,6 +6,7 @@ import 'package:exert/data/models/workout_session_model.dart';
 import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/auth_repository.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
+import 'package:exert/features/account/presentation/account_settings_screen.dart';
 import 'package:exert/features/today/presentation/today_screen.dart';
 import 'package:exert/features/workout/presentation/workout_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -51,7 +52,7 @@ void main() {
 
     await tester.tap(settingsButton);
     await tester.pumpAndSettle();
-    expect(find.text('Account settings'), findsOneWidget);
+    expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
 
     await tester.pageBack();
     await tester.pumpAndSettle();
@@ -62,7 +63,7 @@ void main() {
     await tester.pumpAndSettle();
 
     expect(find.byKey(todayAccountButtonKey), findsOneWidget);
-    expect(find.text('Account settings'), findsNothing);
+    expect(find.byKey(settingsDeleteAccountButtonKey), findsNothing);
   });
 }
 
@@ -89,6 +90,9 @@ class _AuthenticatedAuthRepository implements AuthRepository {
   }) async {
     return _session;
   }
+
+  @override
+  Future<void> deleteAccount() async {}
 
   @override
   Future<void> signOut() async {}
