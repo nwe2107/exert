@@ -11,10 +11,7 @@ import '../../../data/models/workout_session_model.dart';
 import 'workout_providers.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
-  const WorkoutLogScreen({
-    super.key,
-    required this.date,
-  });
+  const WorkoutLogScreen({super.key, required this.date});
 
   final DateTime date;
 
@@ -69,11 +66,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   });
                 },
                 onSave: () => _saveSession(day, existing: session),
-                onMarkRest: () => _quickStatus(
-                  day,
-                  SessionStatus.rest,
-                  existing: session,
-                ),
+                onMarkRest: () =>
+                    _quickStatus(day, SessionStatus.rest, existing: session),
               ),
               const SizedBox(height: 16),
               Row(
@@ -86,10 +80,10 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   FilledButton.tonalIcon(
                     onPressed: templatesAsync is AsyncData
                         ? () => _addOrEditEntry(
-                              date: day,
-                              session: session,
-                              templates: templatesAsync.value!,
-                            )
+                            date: day,
+                            session: session,
+                            templates: templatesAsync.value!,
+                          )
                         : null,
                     icon: const Icon(Icons.add),
                     label: const Text('Add Entry'),
@@ -119,10 +113,13 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                     children: entries.map((entry) {
                       final templateName =
                           templatesById[entry.exerciseTemplateId]?.name ??
-                              'Unknown exercise';
+                          'Unknown exercise';
 
                       final setsSummary = entry.sets
-                          .map((set) => 'S${set.setNumber}: ${set.reps ?? '-'} reps')
+                          .map(
+                            (set) =>
+                                'S${set.setNumber}: ${set.reps ?? '-'} reps',
+                          )
                           .join(' • ');
 
                       return Card(
@@ -137,19 +134,19 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                                   Expanded(
                                     child: Text(
                                       templateName,
-                                      style: Theme.of(context)
-                                          .textTheme
-                                          .titleMedium,
+                                      style: Theme.of(
+                                        context,
+                                      ).textTheme.titleMedium,
                                     ),
                                   ),
                                   IconButton(
                                     onPressed: templatesAsync is AsyncData
                                         ? () => _addOrEditEntry(
-                                              date: day,
-                                              session: session,
-                                              templates: templatesAsync.value!,
-                                              existing: entry,
-                                            )
+                                            date: day,
+                                            session: session,
+                                            templates: templatesAsync.value!,
+                                            existing: entry,
+                                          )
                                         : null,
                                     icon: const Icon(Icons.edit),
                                   ),
@@ -172,15 +169,15 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                   );
                 },
                 loading: () => const LinearProgressIndicator(),
-                error: (error, stackTrace) => Text('Failed to load entries: $error'),
+                error: (error, stackTrace) =>
+                    Text('Failed to load entries: $error'),
               ),
             ],
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Text('Failed to load workout log: $error'),
-        ),
+        error: (error, stackTrace) =>
+            Center(child: Text('Failed to load workout log: $error')),
       ),
     );
   }
@@ -232,9 +229,9 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       _savingSession = false;
     });
 
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('Session saved.')),
-    );
+    ScaffoldMessenger.of(
+      context,
+    ).showSnackBar(const SnackBar(content: Text('Session saved.')));
   }
 
   Future<void> _quickStatus(
@@ -265,8 +262,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     );
   }
 
-  Future<void> _addOrEditEntry(
-    {
+  Future<void> _addOrEditEntry({
     required DateTime date,
     required WorkoutSessionModel? session,
     required List<ExerciseTemplateModel> templates,
@@ -281,10 +277,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       context: context,
       isScrollControlled: true,
       builder: (context) {
-        return _EntryEditorSheet(
-          templates: templates,
-          existing: existing,
-        );
+        return _EntryEditorSheet(templates: templates, existing: existing);
       },
     );
 
@@ -384,7 +377,10 @@ class _SessionCard extends StatelessWidget {
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            Text('Session details', style: Theme.of(context).textTheme.titleMedium),
+            Text(
+              'Session details',
+              style: Theme.of(context).textTheme.titleMedium,
+            ),
             const SizedBox(height: 12),
             DropdownButtonFormField<SessionStatus>(
               initialValue: status,
@@ -473,10 +469,7 @@ class _EntryFormResult {
 }
 
 class _EntryEditorSheet extends StatefulWidget {
-  const _EntryEditorSheet({
-    required this.templates,
-    this.existing,
-  });
+  const _EntryEditorSheet({required this.templates, this.existing});
 
   final List<ExerciseTemplateModel> templates;
   final ExerciseEntryModel? existing;
@@ -502,7 +495,8 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
 
     _templateId = widget.existing?.exerciseTemplateId;
     _schemeType = widget.existing?.schemeType ?? SchemeType.standard;
-    _feltDifficulty = widget.existing?.feltDifficulty ?? DifficultyLevel.moderate;
+    _feltDifficulty =
+        widget.existing?.feltDifficulty ?? DifficultyLevel.moderate;
 
     _supersetGroupController = TextEditingController(
       text: widget.existing?.supersetGroupId ?? '',
@@ -510,7 +504,9 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
     _restController = TextEditingController(
       text: widget.existing?.restSeconds?.toString() ?? '',
     );
-    _notesController = TextEditingController(text: widget.existing?.notes ?? '');
+    _notesController = TextEditingController(
+      text: widget.existing?.notes ?? '',
+    );
 
     final existingSets = widget.existing?.sets ?? const <SetItemModel>[];
     if (existingSets.isEmpty) {
@@ -553,18 +549,12 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
             const SizedBox(height: 12),
             DropdownButtonFormField<int>(
               initialValue: _templateId,
+              isExpanded: true,
               decoration: const InputDecoration(
                 labelText: 'Exercise',
                 border: OutlineInputBorder(),
               ),
-              items: widget.templates
-                  .map(
-                    (template) => DropdownMenuItem<int>(
-                      value: template.id,
-                      child: Text(template.name),
-                    ),
-                  )
-                  .toList(),
+              items: _groupedTemplateDropdownItems(context),
               onChanged: (value) {
                 setState(() {
                   _templateId = value;
@@ -580,10 +570,8 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
               ),
               items: SchemeType.values
                   .map(
-                    (type) => DropdownMenuItem(
-                      value: type,
-                      child: Text(type.label),
-                    ),
+                    (type) =>
+                        DropdownMenuItem(value: type, child: Text(type.label)),
                   )
                   .toList(),
               onChanged: (value) {
@@ -637,10 +625,7 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
               ),
             ),
             const SizedBox(height: 12),
-            Text(
-              'Sets',
-              style: Theme.of(context).textTheme.titleMedium,
-            ),
+            Text('Sets', style: Theme.of(context).textTheme.titleMedium),
             const SizedBox(height: 8),
             ..._buildSetEditors(),
             Align(
@@ -700,10 +685,7 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
           padding: const EdgeInsets.only(bottom: 8),
           child: Row(
             children: [
-              SizedBox(
-                width: 36,
-                child: Text('S${i + 1}'),
-              ),
+              SizedBox(width: 36, child: Text('S${i + 1}')),
               const SizedBox(width: 8),
               Expanded(
                 child: TextFormField(
@@ -734,6 +716,70 @@ class _EntryEditorSheetState extends State<_EntryEditorSheet> {
     }
 
     return widgets;
+  }
+
+  List<DropdownMenuItem<int>> _groupedTemplateDropdownItems(
+    BuildContext context,
+  ) {
+    final templatesByGroup = <MuscleGroup, List<ExerciseTemplateModel>>{};
+    for (final template in widget.templates) {
+      templatesByGroup
+          .putIfAbsent(template.muscleGroup, () => [])
+          .add(template);
+    }
+
+    final items = <DropdownMenuItem<int>>[];
+    var nextHeaderValue = -1;
+    for (final group in MuscleGroup.values) {
+      final grouped = templatesByGroup[group];
+      if (grouped == null || grouped.isEmpty) {
+        continue;
+      }
+
+      grouped.sort(
+        (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+      );
+
+      items.add(
+        DropdownMenuItem<int>(
+          value: nextHeaderValue,
+          enabled: false,
+          child: Container(
+            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 8),
+            decoration: BoxDecoration(
+              color: Theme.of(context).colorScheme.surfaceContainerHigh,
+              borderRadius: BorderRadius.circular(8),
+              border: Border.all(
+                color: Theme.of(context).colorScheme.outline,
+                width: 1.2,
+              ),
+            ),
+            child: Text(
+              group.label,
+              style: TextStyle(
+                fontWeight: FontWeight.w700,
+                color: Theme.of(context).colorScheme.onSurface,
+              ),
+            ),
+          ),
+        ),
+      );
+      nextHeaderValue -= 1;
+
+      for (final template in grouped) {
+        items.add(
+          DropdownMenuItem<int>(
+            value: template.id,
+            child: Padding(
+              padding: const EdgeInsets.only(left: 12),
+              child: Text(template.name),
+            ),
+          ),
+        );
+      }
+    }
+
+    return items;
   }
 
   void _save() {
