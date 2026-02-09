@@ -1,5 +1,8 @@
+import 'dart:math' as math;
+
 import '../../core/enums/app_enums.dart';
 import '../../core/utils/date_utils.dart';
+import '../../data/models/exercise_entry_model.dart';
 import '../../data/models/workout_session_model.dart';
 
 class ProgressSnapshot {
@@ -20,12 +23,70 @@ class ProgressSnapshot {
   final double consistency30;
 }
 
+class MuscleWorkoutPoint {
+  MuscleWorkoutPoint({
+    required this.sessionId,
+    required this.date,
+    required this.totalSets,
+    required this.totalReps,
+    required this.averageRepsPerSet,
+    required this.maxReps,
+    required this.workScore,
+  });
+
+  final int sessionId;
+  final DateTime date;
+  final int totalSets;
+  final int totalReps;
+  final double averageRepsPerSet;
+  final int maxReps;
+  final int workScore;
+}
+
+class WorkoutProgressDelta {
+  WorkoutProgressDelta({
+    required this.current,
+    required this.previous,
+    required this.deltaSets,
+    required this.deltaReps,
+    required this.deltaAverageRepsPerSet,
+    required this.deltaMaxReps,
+    required this.deltaWorkScore,
+  });
+
+  final MuscleWorkoutPoint current;
+  final MuscleWorkoutPoint previous;
+  final int deltaSets;
+  final int deltaReps;
+  final double deltaAverageRepsPerSet;
+  final int deltaMaxReps;
+  final int deltaWorkScore;
+}
+
+class MuscleProgressAnalysis {
+  MuscleProgressAnalysis({
+    required this.muscle,
+    required this.rangeDays,
+    required this.workouts,
+    required this.latestDelta,
+  });
+
+  final SpecificMuscle muscle;
+  final int rangeDays;
+  final List<MuscleWorkoutPoint> workouts;
+  final WorkoutProgressDelta? latestDelta;
+}
+
 class ProgressService {
-  ProgressSnapshot build(List<WorkoutSessionModel> sessions, {DateTime? today}) {
+  ProgressSnapshot build(
+    List<WorkoutSessionModel> sessions, {
+    DateTime? today,
+  }) {
     final now = normalizeLocalDate(today ?? DateTime.now());
     final byDay = <DateTime, WorkoutSessionModel>{
       for (final session in sessions)
-        if (session.deletedAt == null) normalizeLocalDate(session.date): session,
+        if (session.deletedAt == null)
+          normalizeLocalDate(session.date): session,
     };
 
     final rollingWeekStart = now.subtract(const Duration(days: 6));
@@ -81,6 +142,109 @@ class ProgressService {
     );
   }
 
+  MuscleProgressAnalysis buildMuscleAnalysis({
+    required List<WorkoutSessionModel> sessions,
+    required List<ExerciseEntryModel> entries,
+    required SpecificMuscle muscle,
+    required int rangeDays,
+    DateTime? today,
+  }) {
+    final now = normalizeLocalDate(today ?? DateTime.now());
+    final safeRangeDays = rangeDays < 1 ? 1 : rangeDays;
+    final rangeStart = now.subtract(Duration(days: safeRangeDays - 1));
+
+    final sessionById = <int, WorkoutSessionModel>{
+      for (final session in sessions)
+        if (session.deletedAt == null) session.id: session,
+    };
+
+    final aggregateBySessionId = <int, _SessionWorkoutAggregate>{};
+
+    for (final entry in entries) {
+      if (entry.deletedAt != null || entry.specificMuscle != muscle) {
+        continue;
+      }
+
+      final session = sessionById[entry.workoutSessionId];
+      if (session == null) {
+        continue;
+      }
+
+      final sessionDate = normalizeLocalDate(session.date);
+      if (sessionDate.isBefore(rangeStart) || sessionDate.isAfter(now)) {
+        continue;
+      }
+
+      final aggregate = aggregateBySessionId.putIfAbsent(
+        session.id,
+        () =>
+            _SessionWorkoutAggregate(sessionId: session.id, date: sessionDate),
+      );
+
+      final repsInEntry = entry.sets
+          .map((set) => set.reps)
+          .whereType<int>()
+          .toList(growable: false);
+      final repsTotal = repsInEntry.fold<int>(0, (sum, reps) => sum + reps);
+      final entryMaxReps = repsInEntry.isEmpty
+          ? 0
+          : repsInEntry.reduce(math.max);
+
+      aggregate
+        ..totalSets += entry.sets.length
+        ..totalReps += repsTotal
+        ..setsWithReps += repsInEntry.length
+        ..maxReps = math.max(aggregate.maxReps, entryMaxReps);
+    }
+
+    final workouts = aggregateBySessionId.values.map((aggregate) {
+      final averageRepsPerSet = aggregate.setsWithReps == 0
+          ? 0.0
+          : aggregate.totalReps / aggregate.setsWithReps;
+
+      return MuscleWorkoutPoint(
+        sessionId: aggregate.sessionId,
+        date: aggregate.date,
+        totalSets: aggregate.totalSets,
+        totalReps: aggregate.totalReps,
+        averageRepsPerSet: averageRepsPerSet,
+        maxReps: aggregate.maxReps,
+        workScore: aggregate.totalReps * math.max(1, aggregate.totalSets),
+      );
+    }).toList();
+
+    workouts.sort((a, b) {
+      final dateCompare = a.date.compareTo(b.date);
+      if (dateCompare != 0) {
+        return dateCompare;
+      }
+      return a.sessionId.compareTo(b.sessionId);
+    });
+
+    WorkoutProgressDelta? latestDelta;
+    if (workouts.length >= 2) {
+      final previous = workouts[workouts.length - 2];
+      final current = workouts.last;
+      latestDelta = WorkoutProgressDelta(
+        current: current,
+        previous: previous,
+        deltaSets: current.totalSets - previous.totalSets,
+        deltaReps: current.totalReps - previous.totalReps,
+        deltaAverageRepsPerSet:
+            current.averageRepsPerSet - previous.averageRepsPerSet,
+        deltaMaxReps: current.maxReps - previous.maxReps,
+        deltaWorkScore: current.workScore - previous.workScore,
+      );
+    }
+
+    return MuscleProgressAnalysis(
+      muscle: muscle,
+      rangeDays: safeRangeDays,
+      workouts: workouts,
+      latestDelta: latestDelta,
+    );
+  }
+
   bool _isMomentumSession(WorkoutSessionModel session) {
     return session.status != SessionStatus.fail;
   }
@@ -130,4 +294,15 @@ class ProgressService {
 
     return streak;
   }
+}
+
+class _SessionWorkoutAggregate {
+  _SessionWorkoutAggregate({required this.sessionId, required this.date});
+
+  final int sessionId;
+  final DateTime date;
+  int totalSets = 0;
+  int totalReps = 0;
+  int setsWithReps = 0;
+  int maxReps = 0;
 }
