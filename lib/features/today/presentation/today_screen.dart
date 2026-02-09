@@ -9,6 +9,8 @@ import '../../../data/models/workout_session_model.dart';
 import '../../progress/presentation/progress_providers.dart';
 import '../../workout/presentation/workout_providers.dart';
 
+const todayAccountButtonKey = ValueKey('today-account-button');
+
 class TodayScreen extends ConsumerWidget {
   const TodayScreen({super.key});
 
@@ -19,7 +21,24 @@ class TodayScreen extends ConsumerWidget {
     final sessionAsync = ref.watch(sessionForDateProvider(today));
 
     return Scaffold(
-      appBar: AppBar(title: const Text('Today')),
+      appBar: AppBar(
+        leading: Padding(
+          padding: const EdgeInsets.only(left: 8),
+          child: IconButton(
+            key: todayAccountButtonKey,
+            onPressed: () => context.push('/account'),
+            tooltip: 'Account',
+            icon: const Icon(Icons.person_outline),
+            style: IconButton.styleFrom(
+              shape: const CircleBorder(),
+              backgroundColor: Theme.of(
+                context,
+              ).colorScheme.surfaceContainerHigh,
+            ),
+          ),
+        ),
+        title: const Text('Today'),
+      ),
       body: ListView(
         padding: const EdgeInsets.all(16),
         children: [
@@ -45,7 +64,8 @@ class TodayScreen extends ConsumerWidget {
               );
             },
             loading: () => const LinearProgressIndicator(),
-            error: (error, stackTrace) => Text('Failed to load metrics: $error'),
+            error: (error, stackTrace) =>
+                Text('Failed to load metrics: $error'),
           ),
           const SizedBox(height: 16),
           Card(
@@ -133,11 +153,7 @@ class TodayScreen extends ConsumerWidget {
 }
 
 class _MetricCard extends StatelessWidget {
-  const _MetricCard({
-    required this.title,
-    required this.value,
-    this.subtitle,
-  });
+  const _MetricCard({required this.title, required this.value, this.subtitle});
 
   final String title;
   final String value;
