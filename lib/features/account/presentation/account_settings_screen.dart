@@ -142,6 +142,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     try {
       await ref.read(authRepositoryProvider).deleteAccount();
       await ref.read(workoutRepositoryProvider).clearAllUserData();
+      await ref.read(userProfileRepositoryProvider).clearProfile();
     } on AuthException catch (error) {
       if (!mounted) {
         return;

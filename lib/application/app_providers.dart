@@ -4,14 +4,17 @@ import 'package:isar/isar.dart';
 import '../core/utils/date_utils.dart';
 import '../data/models/exercise_entry_model.dart';
 import '../data/models/exercise_template_model.dart';
+import '../data/models/user_profile_model.dart';
 import '../data/models/workout_session_model.dart';
 import '../data/repositories/in_memory_auth_repository.dart';
 import '../data/repositories/isar_exercise_template_repository.dart';
+import '../data/repositories/isar_user_profile_repository.dart';
 import '../data/repositories/isar_workout_repository.dart';
 import '../domain/models/auth_session.dart';
 import '../domain/models/auth_status.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/exercise_template_repository.dart';
+import '../domain/repositories/user_profile_repository.dart';
 import '../domain/repositories/workout_repository.dart';
 import '../domain/services/day_status_service.dart';
 import '../domain/services/heatmap_service.dart';
@@ -29,6 +32,10 @@ final exerciseTemplateRepositoryProvider = Provider<ExerciseTemplateRepository>(
 
 final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
   return IsarWorkoutRepository(ref.watch(isarProvider));
+});
+
+final userProfileRepositoryProvider = Provider<UserProfileRepository>((ref) {
+  return IsarUserProfileRepository(ref.watch(isarProvider));
 });
 
 final dayStatusServiceProvider = Provider<DayStatusService>((ref) {
@@ -92,4 +99,9 @@ final authStatusProvider = Provider<AuthStatus>((ref) {
     loading: () => AuthStatus.loading,
     error: (error, stackTrace) => AuthStatus.unauthenticated,
   );
+});
+
+final userProfileProvider = StreamProvider<UserProfileModel?>((ref) {
+  final repository = ref.watch(userProfileRepositoryProvider);
+  return repository.watchProfile();
 });

@@ -4,9 +4,11 @@ import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
+import 'package:exert/data/models/user_profile_model.dart';
 import 'package:exert/data/models/workout_session_model.dart';
 import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/auth_repository.dart';
+import 'package:exert/domain/repositories/user_profile_repository.dart';
 import 'package:exert/domain/repositories/workout_repository.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
 import 'package:exert/features/account/presentation/account_settings_screen.dart';
@@ -23,12 +25,14 @@ void main() {
   ) async {
     final authRepository = _TestAuthRepository();
     final workoutRepository = _FakeWorkoutRepository();
+    final userProfileRepository = _FakeUserProfileRepository();
     addTearDown(authRepository.dispose);
 
     await _pumpAuthenticatedApp(
       tester,
       authRepository: authRepository,
       workoutRepository: workoutRepository,
+      userProfileRepository: userProfileRepository,
     );
     await _openSettingsFromToday(tester);
 
@@ -47,6 +51,7 @@ void main() {
 
     expect(authRepository.deleteAccountCallCount, 0);
     expect(workoutRepository.clearAllUserDataCallCount, 0);
+    expect(userProfileRepository.clearProfileCallCount, 0);
     expect(authRepository.currentSession, isNotNull);
     expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
   });
@@ -56,12 +61,14 @@ void main() {
     (tester) async {
       final authRepository = _TestAuthRepository();
       final workoutRepository = _FakeWorkoutRepository();
+      final userProfileRepository = _FakeUserProfileRepository();
       addTearDown(authRepository.dispose);
 
       await _pumpAuthenticatedApp(
         tester,
         authRepository: authRepository,
         workoutRepository: workoutRepository,
+        userProfileRepository: userProfileRepository,
       );
       await _openSettingsFromToday(tester);
 
@@ -72,6 +79,7 @@ void main() {
 
       expect(authRepository.deleteAccountCallCount, 1);
       expect(workoutRepository.clearAllUserDataCallCount, 1);
+      expect(userProfileRepository.clearProfileCallCount, 1);
       expect(authRepository.currentSession, isNull);
       expect(find.byKey(loginSubmitButtonKey), findsOneWidget);
     },
@@ -84,12 +92,14 @@ void main() {
       deleteError: const AuthException('Delete account failed.'),
     );
     final workoutRepository = _FakeWorkoutRepository();
+    final userProfileRepository = _FakeUserProfileRepository();
     addTearDown(authRepository.dispose);
 
     await _pumpAuthenticatedApp(
       tester,
       authRepository: authRepository,
       workoutRepository: workoutRepository,
+      userProfileRepository: userProfileRepository,
     );
     await _openSettingsFromToday(tester);
 
@@ -101,6 +111,7 @@ void main() {
 
     expect(authRepository.deleteAccountCallCount, 1);
     expect(workoutRepository.clearAllUserDataCallCount, 0);
+    expect(userProfileRepository.clearProfileCallCount, 0);
     expect(authRepository.currentSession, isNotNull);
     expect(find.text('Delete account failed.'), findsOneWidget);
     expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
@@ -112,12 +123,14 @@ Future<void> _pumpAuthenticatedApp(
   WidgetTester tester, {
   required _TestAuthRepository authRepository,
   required _FakeWorkoutRepository workoutRepository,
+  required _FakeUserProfileRepository userProfileRepository,
 }) async {
   await tester.pumpWidget(
     ProviderScope(
       overrides: [
         authRepositoryProvider.overrideWithValue(authRepository),
         workoutRepositoryProvider.overrideWithValue(workoutRepository),
+        userProfileRepositoryProvider.overrideWithValue(userProfileRepository),
         todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
         allSessionsProvider.overrideWith(
           (ref) => Stream.value(<WorkoutSessionModel>[]),
@@ -279,5 +292,27 @@ class _FakeWorkoutRepository implements WorkoutRepository {
   @override
   Future<void> clearAllUserData() async {
     clearAllUserDataCallCount += 1;
+  }
+}
+
+class _FakeUserProfileRepository implements UserProfileRepository {
+  int clearProfileCallCount = 0;
+
+  @override
+  Stream<UserProfileModel?> watchProfile() {
+    return Stream<UserProfileModel?>.value(null);
+  }
+
+  @override
+  Future<UserProfileModel?> getProfile() async {
+    return null;
+  }
+
+  @override
+  Future<void> saveProfile(UserProfileModel profile) async {}
+
+  @override
+  Future<void> clearProfile() async {
+    clearProfileCallCount += 1;
   }
 }

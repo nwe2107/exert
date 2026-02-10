@@ -4,6 +4,7 @@ import 'package:path_provider/path_provider.dart';
 
 import '../models/exercise_entry_model.dart';
 import '../models/exercise_template_model.dart';
+import '../models/user_profile_model.dart';
 import '../models/workout_session_model.dart';
 
 class IsarService {
@@ -14,6 +15,7 @@ class IsarService {
         ExerciseTemplateModelSchema,
         WorkoutSessionModelSchema,
         ExerciseEntryModelSchema,
+        UserProfileModelSchema,
       ],
       directory: directory.path,
       inspector: kDebugMode,

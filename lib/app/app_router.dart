@@ -5,6 +5,7 @@ import '../application/app_providers.dart';
 import '../core/utils/route_date_codec.dart';
 import '../features/account/presentation/account_screen.dart';
 import '../features/account/presentation/account_settings_screen.dart';
+import '../features/account/presentation/personal_info_form_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/calendar/presentation/calendar_screen.dart';
 import '../features/heatmap/presentation/heatmap_screen.dart';
@@ -89,6 +90,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
         path: '/account',
         builder: (context, state) => const AccountScreen(),
         routes: [
+          GoRoute(
+            path: 'profile',
+            builder: (context, state) => const PersonalInfoFormScreen(),
+          ),
           GoRoute(
             path: 'settings',
             builder: (context, state) => const AccountSettingsScreen(),

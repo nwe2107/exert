@@ -2,69 +2,85 @@ import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
+import 'package:exert/data/models/user_profile_model.dart';
 import 'package:exert/data/models/workout_session_model.dart';
 import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/auth_repository.dart';
+import 'package:exert/domain/repositories/user_profile_repository.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
 import 'package:exert/features/account/presentation/account_settings_screen.dart';
+import 'package:exert/features/account/presentation/personal_info_form_screen.dart';
 import 'package:exert/features/today/presentation/today_screen.dart';
 import 'package:exert/features/workout/presentation/workout_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 void main() {
-  testWidgets('navigates Today -> Account -> Settings and returns to Today', (
-    tester,
-  ) async {
-    await tester.pumpWidget(
-      ProviderScope(
-        overrides: [
-          authRepositoryProvider.overrideWithValue(
-            _AuthenticatedAuthRepository(),
-          ),
-          todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
-          allSessionsProvider.overrideWith(
-            (ref) => Stream.value(<WorkoutSessionModel>[]),
-          ),
-          allTemplatesProvider.overrideWith(
-            (ref) => Stream.value(<ExerciseTemplateModel>[]),
-          ),
-          allEntriesProvider.overrideWith(
-            (ref) => Stream.value(<ExerciseEntryModel>[]),
-          ),
-          sessionForDateProvider.overrideWith(
-            (ref, date) => Stream<WorkoutSessionModel?>.value(null),
-          ),
-        ],
-        child: const ExertApp(),
-      ),
-    );
-    await tester.pumpAndSettle();
+  testWidgets(
+    'navigates Today -> Account -> Profile/Settings and returns to Today',
+    (tester) async {
+      await tester.pumpWidget(
+        ProviderScope(
+          overrides: [
+            authRepositoryProvider.overrideWithValue(
+              _AuthenticatedAuthRepository(),
+            ),
+            userProfileRepositoryProvider.overrideWithValue(
+              _FakeUserProfileRepository(),
+            ),
+            todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
+            allSessionsProvider.overrideWith(
+              (ref) => Stream.value(<WorkoutSessionModel>[]),
+            ),
+            allTemplatesProvider.overrideWith(
+              (ref) => Stream.value(<ExerciseTemplateModel>[]),
+            ),
+            allEntriesProvider.overrideWith(
+              (ref) => Stream.value(<ExerciseEntryModel>[]),
+            ),
+            sessionForDateProvider.overrideWith(
+              (ref, date) => Stream<WorkoutSessionModel?>.value(null),
+            ),
+          ],
+          child: const ExertApp(),
+        ),
+      );
+      await tester.pumpAndSettle();
 
-    final todayAccountButton = find.byKey(todayAccountButtonKey);
-    expect(todayAccountButton, findsOneWidget);
+      final todayAccountButton = find.byKey(todayAccountButtonKey);
+      expect(todayAccountButton, findsOneWidget);
 
-    await tester.tap(todayAccountButton);
-    await tester.pumpAndSettle();
+      await tester.tap(todayAccountButton);
+      await tester.pumpAndSettle();
 
-    final settingsButton = find.byKey(accountSettingsButtonKey);
-    expect(settingsButton, findsOneWidget);
+      final profileButton = find.byKey(accountProfileButtonKey);
+      expect(profileButton, findsOneWidget);
+      await tester.tap(profileButton);
+      await tester.pumpAndSettle();
+      expect(find.byKey(profileSaveButtonKey), findsOneWidget);
 
-    await tester.tap(settingsButton);
-    await tester.pumpAndSettle();
-    expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
+      await tester.pageBack();
+      await tester.pumpAndSettle();
 
-    await tester.pageBack();
-    await tester.pumpAndSettle();
+      final settingsButton = find.byKey(accountSettingsButtonKey);
+      expect(settingsButton, findsOneWidget);
 
-    final backToTodayButton = find.byKey(accountBackButtonKey);
-    expect(backToTodayButton, findsOneWidget);
-    await tester.tap(backToTodayButton);
-    await tester.pumpAndSettle();
+      await tester.tap(settingsButton);
+      await tester.pumpAndSettle();
+      expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
 
-    expect(find.byKey(todayAccountButtonKey), findsOneWidget);
-    expect(find.byKey(settingsDeleteAccountButtonKey), findsNothing);
-  });
+      await tester.pageBack();
+      await tester.pumpAndSettle();
+
+      final backToTodayButton = find.byKey(accountBackButtonKey);
+      expect(backToTodayButton, findsOneWidget);
+      await tester.tap(backToTodayButton);
+      await tester.pumpAndSettle();
+
+      expect(find.byKey(todayAccountButtonKey), findsOneWidget);
+      expect(find.byKey(settingsDeleteAccountButtonKey), findsNothing);
+    },
+  );
 }
 
 class _AuthenticatedAuthRepository implements AuthRepository {
@@ -96,4 +112,22 @@ class _AuthenticatedAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {}
+}
+
+class _FakeUserProfileRepository implements UserProfileRepository {
+  @override
+  Stream<UserProfileModel?> watchProfile() {
+    return Stream<UserProfileModel?>.value(null);
+  }
+
+  @override
+  Future<UserProfileModel?> getProfile() async {
+    return null;
+  }
+
+  @override
+  Future<void> saveProfile(UserProfileModel profile) async {}
+
+  @override
+  Future<void> clearProfile() async {}
 }
