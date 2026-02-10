@@ -1,16 +1,24 @@
 # exert
 
-A new Flutter project.
+Offline-first exercise discipline app.
 
-## Getting Started
+## Firebase setup (auth + accounts)
 
-This project is a starting point for a Flutter application.
+Firebase auth/account integration is enabled automatically when Firebase is configured on the project.
 
-A few resources to get you started if this is your first Flutter project:
+1. Install FlutterFire CLI:
+`dart pub global activate flutterfire_cli`
+2. Configure Firebase for this app:
+`flutterfire configure`
+3. Ensure generated platform files are present:
+- Android: `android/app/google-services.json`
+- iOS: `ios/Runner/GoogleService-Info.plist`
+4. Run the app.
 
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
+If Firebase is not configured, the app falls back to local in-memory demo auth:
+- Email: `demo@exert.app`
+- Password: `exert1234`
 
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+## Flutter resources
+- [Flutter docs](https://docs.flutter.dev/)
+- [FlutterFire docs](https://firebase.flutter.dev/)

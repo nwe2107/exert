@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../../../application/app_providers.dart';
 import '../../../domain/repositories/auth_repository.dart';
 
+const settingsSignOutButtonKey = ValueKey('settings-sign-out-button');
 const settingsDeleteAccountButtonKey = ValueKey(
   'settings-delete-account-button',
 );
@@ -23,6 +24,7 @@ class AccountSettingsScreen extends ConsumerStatefulWidget {
 }
 
 class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
+  bool _isSigningOut = false;
   bool _isDeleting = false;
 
   @override
@@ -70,6 +72,19 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
               ),
             ),
           ),
+          const SizedBox(height: 16),
+          OutlinedButton.icon(
+            key: settingsSignOutButtonKey,
+            onPressed: _isSigningOut || _isDeleting ? null : _onSignOutPressed,
+            icon: _isSigningOut
+                ? const SizedBox(
+                    width: 16,
+                    height: 16,
+                    child: CircularProgressIndicator(strokeWidth: 2),
+                  )
+                : const Icon(Icons.logout),
+            label: Text(_isSigningOut ? 'Signing out...' : 'Sign out'),
+          ),
           const SizedBox(height: 24),
           Text(
             'Danger zone',
@@ -84,7 +99,9 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
           const SizedBox(height: 12),
           FilledButton.tonalIcon(
             key: settingsDeleteAccountButtonKey,
-            onPressed: _isDeleting ? null : _onDeleteAccountPressed,
+            onPressed: _isDeleting || _isSigningOut
+                ? null
+                : _onDeleteAccountPressed,
             icon: _isDeleting
                 ? const SizedBox(
                     width: 16,
@@ -163,6 +180,36 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
       if (mounted) {
         setState(() {
           _isDeleting = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _onSignOutPressed() async {
+    setState(() {
+      _isSigningOut = true;
+    });
+
+    try {
+      await ref.read(authRepositoryProvider).signOut();
+    } on AuthException catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text(error.message)));
+    } catch (_) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Failed to sign out. Please try again.')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isSigningOut = false;
         });
       }
     }

@@ -9,7 +9,12 @@ const String _demoPasswordHint = 'exert1234';
 
 const loginEmailFieldKey = Key('login_email_field');
 const loginPasswordFieldKey = Key('login_password_field');
+const loginConfirmPasswordFieldKey = Key('login_confirm_password_field');
 const loginSubmitButtonKey = Key('login_submit_button');
+const loginSignInModeButtonKey = Key('login_sign_in_mode_button');
+const loginSignUpModeButtonKey = Key('login_sign_up_mode_button');
+
+enum _AuthFormMode { signIn, signUp }
 
 class LoginScreen extends ConsumerStatefulWidget {
   const LoginScreen({super.key});
@@ -22,20 +27,24 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
+  final _confirmPasswordController = TextEditingController();
 
   bool _isSubmitting = false;
+  _AuthFormMode _mode = _AuthFormMode.signIn;
   String? _errorMessage;
 
   @override
   void dispose() {
     _emailController.dispose();
     _passwordController.dispose();
+    _confirmPasswordController.dispose();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
     final theme = Theme.of(context);
+    final usingFirebaseAuth = ref.watch(usingFirebaseAuthProvider);
 
     return Scaffold(
       appBar: AppBar(title: const Text('Login')),
@@ -55,18 +64,51 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                       mainAxisSize: MainAxisSize.min,
                       children: [
                         Text(
-                          'Sign in to continue',
+                          _mode == _AuthFormMode.signIn
+                              ? 'Sign in to continue'
+                              : 'Create your account',
                           style: theme.textTheme.headlineSmall,
                         ),
+                        const SizedBox(height: 12),
+                        Row(
+                          children: [
+                            Expanded(
+                              child: FilledButton.tonal(
+                                key: loginSignInModeButtonKey,
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () => _switchMode(_AuthFormMode.signIn),
+                                child: const Text('Sign In'),
+                              ),
+                            ),
+                            const SizedBox(width: 8),
+                            Expanded(
+                              child: FilledButton.tonal(
+                                key: loginSignUpModeButtonKey,
+                                onPressed: _isSubmitting
+                                    ? null
+                                    : () => _switchMode(_AuthFormMode.signUp),
+                                child: const Text('Sign Up'),
+                              ),
+                            ),
+                          ],
+                        ),
                         const SizedBox(height: 8),
-                        Text(
-                          'Demo login: $_demoEmailHint',
-                          style: theme.textTheme.bodyMedium,
-                        ),
-                        Text(
-                          'Password: $_demoPasswordHint',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        if (usingFirebaseAuth)
+                          Text(
+                            'Use your Firebase account credentials.',
+                            style: theme.textTheme.bodyMedium,
+                          )
+                        else ...[
+                          Text(
+                            'Demo login: $_demoEmailHint',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                          Text(
+                            'Password: $_demoPasswordHint',
+                            style: theme.textTheme.bodyMedium,
+                          ),
+                        ],
                         const SizedBox(height: 20),
                         TextFormField(
                           key: loginEmailFieldKey,
@@ -106,6 +148,32 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                             return null;
                           },
                         ),
+                        if (_mode == _AuthFormMode.signUp) ...[
+                          const SizedBox(height: 12),
+                          TextFormField(
+                            key: loginConfirmPasswordFieldKey,
+                            controller: _confirmPasswordController,
+                            decoration: const InputDecoration(
+                              labelText: 'Confirm Password',
+                              border: OutlineInputBorder(),
+                            ),
+                            obscureText: true,
+                            validator: (value) {
+                              if (_mode != _AuthFormMode.signUp) {
+                                return null;
+                              }
+                              final confirmPassword = value?.trim() ?? '';
+                              if (confirmPassword.isEmpty) {
+                                return 'Please confirm your password.';
+                              }
+                              if (confirmPassword !=
+                                  _passwordController.text.trim()) {
+                                return 'Passwords do not match.';
+                              }
+                              return null;
+                            },
+                          ),
+                        ],
                         if (_errorMessage != null) ...[
                           const SizedBox(height: 12),
                           Text(
@@ -129,10 +197,14 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
                                       ),
                                     ),
                                     SizedBox(width: 8),
-                                    Text('Signing in...'),
+                                    Text('Submitting...'),
                                   ],
                                 )
-                              : const Text('Sign In'),
+                              : Text(
+                                  _mode == _AuthFormMode.signIn
+                                      ? 'Sign In'
+                                      : 'Create Account',
+                                ),
                         ),
                       ],
                     ),
@@ -159,12 +231,18 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
     });
 
     try {
-      await ref
-          .read(authRepositoryProvider)
-          .signInWithEmailAndPassword(
-            email: _emailController.text,
-            password: _passwordController.text,
-          );
+      final repository = ref.read(authRepositoryProvider);
+      if (_mode == _AuthFormMode.signIn) {
+        await repository.signInWithEmailAndPassword(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+      } else {
+        await repository.signUpWithEmailAndPassword(
+          email: _emailController.text,
+          password: _passwordController.text,
+        );
+      }
     } on AuthException catch (error) {
       if (!mounted) {
         return;
@@ -186,5 +264,16 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
         });
       }
     }
+  }
+
+  void _switchMode(_AuthFormMode nextMode) {
+    if (nextMode == _mode) {
+      return;
+    }
+    setState(() {
+      _mode = nextMode;
+      _errorMessage = null;
+      _confirmPasswordController.clear();
+    });
   }
 }

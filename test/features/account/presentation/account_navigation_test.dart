@@ -108,6 +108,14 @@ class _AuthenticatedAuthRepository implements AuthRepository {
   }
 
   @override
+  Future<AuthSession> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    return _session;
+  }
+
+  @override
   Future<void> deleteAccount() async {}
 
   @override

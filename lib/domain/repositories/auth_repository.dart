@@ -10,6 +10,11 @@ abstract class AuthRepository {
     required String password,
   });
 
+  Future<AuthSession> signUpWithEmailAndPassword({
+    required String email,
+    required String password,
+  });
+
   Future<void> deleteAccount();
 
   Future<void> signOut();

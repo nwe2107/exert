@@ -56,6 +56,32 @@ void main() {
     expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
   });
 
+  testWidgets('signing out routes back to login without deleting data', (
+    tester,
+  ) async {
+    final authRepository = _TestAuthRepository();
+    final workoutRepository = _FakeWorkoutRepository();
+    final userProfileRepository = _FakeUserProfileRepository();
+    addTearDown(authRepository.dispose);
+
+    await _pumpAuthenticatedApp(
+      tester,
+      authRepository: authRepository,
+      workoutRepository: workoutRepository,
+      userProfileRepository: userProfileRepository,
+    );
+    await _openSettingsFromToday(tester);
+
+    await tester.tap(find.byKey(settingsSignOutButtonKey));
+    await tester.pumpAndSettle();
+
+    expect(authRepository.signOutCallCount, 1);
+    expect(authRepository.currentSession, isNull);
+    expect(workoutRepository.clearAllUserDataCallCount, 0);
+    expect(userProfileRepository.clearProfileCallCount, 0);
+    expect(find.byKey(loginSubmitButtonKey), findsOneWidget);
+  });
+
   testWidgets(
     'confirming delete removes account, clears user data, and routes to login',
     (tester) async {
@@ -175,6 +201,7 @@ class _TestAuthRepository implements AuthRepository {
 
   AuthSession? _session;
   int deleteAccountCallCount = 0;
+  int signOutCallCount = 0;
 
   @override
   AuthSession? get currentSession => _session;
@@ -187,6 +214,14 @@ class _TestAuthRepository implements AuthRepository {
 
   @override
   Future<AuthSession> signInWithEmailAndPassword({
+    required String email,
+    required String password,
+  }) async {
+    return _session!;
+  }
+
+  @override
+  Future<AuthSession> signUpWithEmailAndPassword({
     required String email,
     required String password,
   }) async {
@@ -207,6 +242,7 @@ class _TestAuthRepository implements AuthRepository {
 
   @override
   Future<void> signOut() async {
+    signOutCallCount += 1;
     _session = null;
     _sessionController.add(null);
   }

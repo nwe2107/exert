@@ -1,4 +1,7 @@
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:firebase_auth/firebase_auth.dart';
+import 'package:firebase_core/firebase_core.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:isar/isar.dart';
 
 import '../core/utils/date_utils.dart';
@@ -6,6 +9,7 @@ import '../data/models/exercise_entry_model.dart';
 import '../data/models/exercise_template_model.dart';
 import '../data/models/user_profile_model.dart';
 import '../data/models/workout_session_model.dart';
+import '../data/repositories/firebase_auth_repository.dart';
 import '../data/repositories/in_memory_auth_repository.dart';
 import '../data/repositories/isar_exercise_template_repository.dart';
 import '../data/repositories/isar_user_profile_repository.dart';
@@ -22,6 +26,10 @@ import '../domain/services/progress_service.dart';
 
 final isarProvider = Provider<Isar>((ref) {
   throw UnimplementedError('isarProvider must be overridden at startup.');
+});
+
+final firebaseAppProvider = Provider<FirebaseApp?>((ref) {
+  return null;
 });
 
 final exerciseTemplateRepositoryProvider = Provider<ExerciseTemplateRepository>(
@@ -78,9 +86,17 @@ final templatesByIdProvider =
     });
 
 final authRepositoryProvider = Provider<AuthRepository>((ref) {
-  final repository = InMemoryAuthRepository();
-  ref.onDispose(repository.dispose);
-  return repository;
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  if (firebaseApp != null) {
+    return FirebaseAuthRepository(
+      firebaseAuth: FirebaseAuth.instanceFor(app: firebaseApp),
+      firestore: FirebaseFirestore.instanceFor(app: firebaseApp),
+    );
+  }
+
+  final fallbackRepository = InMemoryAuthRepository();
+  ref.onDispose(fallbackRepository.dispose);
+  return fallbackRepository;
 });
 
 final authSessionProvider = StreamProvider<AuthSession?>((ref) {
@@ -99,6 +115,10 @@ final authStatusProvider = Provider<AuthStatus>((ref) {
     loading: () => AuthStatus.loading,
     error: (error, stackTrace) => AuthStatus.unauthenticated,
   );
+});
+
+final usingFirebaseAuthProvider = Provider<bool>((ref) {
+  return ref.watch(firebaseAppProvider) != null;
 });
 
 final userProfileProvider = StreamProvider<UserProfileModel?>((ref) {
