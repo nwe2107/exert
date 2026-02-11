@@ -30,6 +30,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   @override
   Widget build(BuildContext context) {
     final session = ref.watch(authSessionProvider).valueOrNull;
+    final profileAsync = ref.watch(accountProfileProvider);
+    final displayName = profileAsync.valueOrNull?.displayName ?? '';
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -48,10 +50,12 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                   ),
                   const SizedBox(height: 8),
                   Text('Signed in as ${session?.email ?? 'Unknown user'}'),
+                  if (displayName.isNotEmpty) ...[
+                    const SizedBox(height: 6),
+                    Text('Display name: $displayName'),
+                  ],
                   const SizedBox(height: 6),
-                  const Text(
-                    'Profile editing will be added in a future update.',
-                  ),
+                  const Text('Manage profile basics from the Account screen.'),
                 ],
               ),
             ),
@@ -152,12 +156,17 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
       return;
     }
 
+    final password = await _promptForPassword();
+    if (!mounted || password == null) {
+      return;
+    }
+
     setState(() {
       _isDeleting = true;
     });
 
     try {
-      await ref.read(authRepositoryProvider).deleteAccount();
+      await ref.read(authRepositoryProvider).deleteAccount(password: password);
       await ref.read(workoutRepositoryProvider).clearAllUserData();
       await ref.read(userProfileRepositoryProvider).clearProfile();
     } on AuthException catch (error) {
@@ -183,6 +192,51 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         });
       }
     }
+  }
+
+  Future<String?> _promptForPassword() async {
+    final controller = TextEditingController();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (dialogContext) {
+        return AlertDialog(
+          title: const Text('Confirm password'),
+          content: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: [
+              const Text(
+                'For security, please re-enter your password to delete your account.',
+              ),
+              const SizedBox(height: 12),
+              TextField(
+                controller: controller,
+                obscureText: true,
+                decoration: const InputDecoration(
+                  labelText: 'Password',
+                  border: OutlineInputBorder(),
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(dialogContext).pop(null),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () =>
+                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              child: const Text('Confirm'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    if (result == null || result.isEmpty) {
+      return null;
+    }
+    return result;
   }
 
   Future<void> _onSignOutPressed() async {

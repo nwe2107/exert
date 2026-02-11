@@ -73,17 +73,38 @@ class FirebaseAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<void> deleteAccount({String? password}) async {
     final user = _firebaseAuth.currentUser;
     if (user == null) {
       throw const AuthException('No active account to delete.');
     }
 
     try {
-      await _firestore.collection('users').doc(user.uid).delete();
+      // Attempt delete directly; if recent auth is required we handle below.
       await user.delete();
+      await _firestore.collection('users').doc(user.uid).delete();
     } on FirebaseAuthException catch (error) {
-      throw AuthException(_mapFirebaseAuthError(error));
+      if (error.code == 'requires-recent-login') {
+        if (password == null || (user.email ?? '').isEmpty) {
+          throw const AuthException(
+            'Please re-enter your password to delete your account.',
+          );
+        }
+
+        try {
+          final credential = EmailAuthProvider.credential(
+            email: user.email!,
+            password: password,
+          );
+          await user.reauthenticateWithCredential(credential);
+          await user.delete();
+          await _firestore.collection('users').doc(user.uid).delete();
+        } on FirebaseAuthException catch (reauthError) {
+          throw AuthException(_mapFirebaseAuthError(reauthError));
+        }
+      } else {
+        throw AuthException(_mapFirebaseAuthError(error));
+      }
     } catch (_) {
       throw const AuthException('Failed to delete account. Please try again.');
     }
@@ -101,10 +122,12 @@ class FirebaseAuthRepository implements AuthRepository {
     final data = <String, Object?>{
       'uid': user.uid,
       'email': user.email ?? '',
+      'displayName': user.displayName ?? '',
       'updatedAt': now,
     };
 
     if (!snapshot.exists) {
+      data['onboardingComplete'] = false;
       data['createdAt'] = now;
     }
 

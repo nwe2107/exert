@@ -66,12 +66,14 @@ class WorkoutProgressDelta {
 class MuscleProgressAnalysis {
   MuscleProgressAnalysis({
     required this.muscle,
+    required this.exerciseTemplateId,
     required this.rangeDays,
     required this.workouts,
     required this.latestDelta,
   });
 
   final SpecificMuscle muscle;
+  final int? exerciseTemplateId;
   final int rangeDays;
   final List<MuscleWorkoutPoint> workouts;
   final WorkoutProgressDelta? latestDelta;
@@ -146,6 +148,7 @@ class ProgressService {
     required List<WorkoutSessionModel> sessions,
     required List<ExerciseEntryModel> entries,
     required SpecificMuscle muscle,
+    int? exerciseTemplateId,
     required int rangeDays,
     DateTime? today,
   }) {
@@ -162,6 +165,10 @@ class ProgressService {
 
     for (final entry in entries) {
       if (entry.deletedAt != null || entry.specificMuscle != muscle) {
+        continue;
+      }
+      if (exerciseTemplateId != null &&
+          entry.exerciseTemplateId != exerciseTemplateId) {
         continue;
       }
 
@@ -239,6 +246,7 @@ class ProgressService {
 
     return MuscleProgressAnalysis(
       muscle: muscle,
+      exerciseTemplateId: exerciseTemplateId,
       rangeDays: safeRangeDays,
       workouts: workouts,
       latestDelta: latestDelta,

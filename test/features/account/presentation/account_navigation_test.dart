@@ -2,14 +2,14 @@ import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
-import 'package:exert/data/models/user_profile_model.dart';
 import 'package:exert/data/models/workout_session_model.dart';
 import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/auth_repository.dart';
-import 'package:exert/domain/repositories/user_profile_repository.dart';
+import 'package:exert/domain/repositories/account_profile_repository.dart';
+import 'package:exert/data/models/account_profile_model.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
 import 'package:exert/features/account/presentation/account_settings_screen.dart';
-import 'package:exert/features/account/presentation/personal_info_form_screen.dart';
+import 'package:exert/features/account/presentation/account_profile_form_screen.dart';
 import 'package:exert/features/today/presentation/today_screen.dart';
 import 'package:exert/features/workout/presentation/workout_providers.dart';
 import 'package:flutter_test/flutter_test.dart';
@@ -25,8 +25,8 @@ void main() {
             authRepositoryProvider.overrideWithValue(
               _AuthenticatedAuthRepository(),
             ),
-            userProfileRepositoryProvider.overrideWithValue(
-              _FakeUserProfileRepository(),
+            accountProfileRepositoryProvider.overrideWithValue(
+              _FakeAccountProfileRepository(),
             ),
             todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
             allSessionsProvider.overrideWith(
@@ -57,7 +57,7 @@ void main() {
       expect(profileButton, findsOneWidget);
       await tester.tap(profileButton);
       await tester.pumpAndSettle();
-      expect(find.byKey(profileSaveButtonKey), findsOneWidget);
+      expect(find.byKey(accountProfileSaveButtonKey), findsOneWidget);
 
       await tester.pageBack();
       await tester.pumpAndSettle();
@@ -116,26 +116,42 @@ class _AuthenticatedAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> deleteAccount() async {}
+  Future<void> deleteAccount({String? password}) async {}
 
   @override
   Future<void> signOut() async {}
 }
 
-class _FakeUserProfileRepository implements UserProfileRepository {
+class _FakeAccountProfileRepository implements AccountProfileRepository {
   @override
-  Stream<UserProfileModel?> watchProfile() {
-    return Stream<UserProfileModel?>.value(null);
+  Stream<AccountProfileModel?> watchProfile(String uid) {
+    return Stream<AccountProfileModel?>.value(
+      AccountProfileModel(
+        uid: uid,
+        email: 'test@exert.app',
+        displayName: 'Test User',
+        onboardingComplete: true,
+        createdAt: DateTime(2026, 2, 1),
+        updatedAt: DateTime(2026, 2, 1),
+      ),
+    );
   }
 
   @override
-  Future<UserProfileModel?> getProfile() async {
-    return null;
+  Future<AccountProfileModel?> getProfile(String uid) async {
+    return AccountProfileModel(
+      uid: uid,
+      email: 'test@exert.app',
+      displayName: 'Test User',
+      onboardingComplete: true,
+      createdAt: DateTime(2026, 2, 1),
+      updatedAt: DateTime(2026, 2, 1),
+    );
   }
 
   @override
-  Future<void> saveProfile(UserProfileModel profile) async {}
+  Future<void> saveProfile(AccountProfileModel profile) async {}
 
   @override
-  Future<void> clearProfile() async {}
+  Future<void> deleteProfile(String uid) async {}
 }

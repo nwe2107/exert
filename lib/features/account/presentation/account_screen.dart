@@ -3,7 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/app_providers.dart';
-import '../../../data/models/user_profile_model.dart';
+import '../../../data/models/account_profile_model.dart';
 
 const accountBackButtonKey = ValueKey('account-back-button');
 const accountSettingsButtonKey = ValueKey('account-settings-button');
@@ -15,10 +15,12 @@ class AccountScreen extends ConsumerWidget {
   @override
   Widget build(BuildContext context, WidgetRef ref) {
     final theme = Theme.of(context);
-    final profileAsync = ref.watch(userProfileProvider);
+    final profileAsync = ref.watch(accountProfileProvider);
+    final session = ref.watch(authSessionProvider).valueOrNull;
     final profile = profileAsync.valueOrNull;
-    final isProfileComplete = profile?.isComplete ?? false;
-    final statusLabel = isProfileComplete ? 'Complete' : 'Incomplete';
+    final profileStatus = profileAsync.isLoading
+        ? 'Loading...'
+        : (profile != null ? 'Loaded' : 'Missing');
 
     return Scaffold(
       appBar: AppBar(
@@ -52,29 +54,45 @@ class AccountScreen extends ConsumerWidget {
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
                         Text(
-                          'Profile summary',
+                          'Account profile',
                           style: theme.textTheme.titleMedium,
                         ),
                         const SizedBox(height: 4),
-                        Text(
-                          'Status: $statusLabel',
-                          style: theme.textTheme.bodyMedium,
-                        ),
+                        Text('Status: $profileStatus'),
                         if (profileAsync.isLoading) ...[
                           const SizedBox(height: 6),
                           const LinearProgressIndicator(),
-                        ] else if (isProfileComplete) ...[
+                        ] else if (profileAsync.hasError) ...[
                           const SizedBox(height: 6),
                           Text(
-                            '${profile!.weight.toStringAsFixed(1)} ${profile.weightUnit.label} • '
-                            '${profile.height.toStringAsFixed(1)} ${profile.heightUnit.label} • '
-                            'Age ${profile.age} • ${profile.gender!.label}',
+                            'Failed to load profile. Tap edit to retry.',
+                            style: theme.textTheme.bodyMedium?.copyWith(
+                              color: theme.colorScheme.error,
+                            ),
+                          ),
+                        ] else if (profile != null) ...[
+                          const SizedBox(height: 6),
+                          Text(
+                            profile.displayName.isNotEmpty
+                                ? profile.displayName
+                                : 'No display name yet',
+                            style: theme.textTheme.titleSmall,
+                          ),
+                          Text(
+                            session?.email ?? profile.email,
                             style: theme.textTheme.bodyMedium,
+                          ),
+                          const SizedBox(height: 4),
+                          Text(
+                            profile.onboardingComplete
+                                ? 'Onboarding complete'
+                                : 'Onboarding incomplete',
+                            style: theme.textTheme.bodySmall,
                           ),
                         ] else ...[
                           const SizedBox(height: 6),
                           Text(
-                            'Add your personal metrics to personalize your account.',
+                            'Set your display name to personalize your account.',
                             style: theme.textTheme.bodyMedium,
                           ),
                         ],
@@ -90,11 +108,7 @@ class AccountScreen extends ConsumerWidget {
             key: accountProfileButtonKey,
             onPressed: () => context.push('/account/profile'),
             icon: const Icon(Icons.badge_outlined),
-            label: Text(
-              isProfileComplete
-                  ? 'Edit Personal Info'
-                  : 'Complete Personal Info',
-            ),
+            label: const Text('Edit Account Profile'),
           ),
           const SizedBox(height: 24),
           FilledButton.icon(

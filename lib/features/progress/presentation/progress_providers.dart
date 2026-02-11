@@ -75,6 +75,65 @@ final progressMuscleFilterProvider = StateProvider<SpecificMuscle>((ref) {
   return SpecificMuscle.abs;
 });
 
+final progressExerciseFilterProvider = StateProvider<int?>((ref) {
+  return null;
+});
+
+class ProgressExerciseOption {
+  const ProgressExerciseOption({required this.templateId, required this.label});
+
+  final int templateId;
+  final String label;
+}
+
+final progressExerciseOptionsProvider =
+    Provider<AsyncValue<List<ProgressExerciseOption>>>((ref) {
+      final entriesAsync = ref.watch(allEntriesProvider);
+      final templatesAsync = ref.watch(allTemplatesProvider);
+      final selectedMuscle = ref.watch(progressMuscleFilterProvider);
+
+      if (entriesAsync.hasError) {
+        return AsyncValue.error(
+          entriesAsync.error!,
+          entriesAsync.stackTrace ?? StackTrace.empty,
+        );
+      }
+      if (templatesAsync.hasError) {
+        return AsyncValue.error(
+          templatesAsync.error!,
+          templatesAsync.stackTrace ?? StackTrace.empty,
+        );
+      }
+
+      if (entriesAsync is! AsyncData || templatesAsync is! AsyncData) {
+        return const AsyncValue.loading();
+      }
+
+      final nameByTemplateId = {
+        for (final template in templatesAsync.value!)
+          template.id: template.name,
+      };
+      final templateIds = entriesAsync.value!
+          .where((entry) => entry.specificMuscle == selectedMuscle)
+          .map((entry) => entry.exerciseTemplateId)
+          .toSet();
+
+      final options =
+          templateIds
+              .map(
+                (templateId) => ProgressExerciseOption(
+                  templateId: templateId,
+                  label: nameByTemplateId[templateId] ?? 'Exercise $templateId',
+                ),
+              )
+              .toList()
+            ..sort(
+              (a, b) => a.label.toLowerCase().compareTo(b.label.toLowerCase()),
+            );
+
+      return AsyncValue.data(options);
+    });
+
 final muscleProgressAnalysisProvider =
     Provider<AsyncValue<MuscleProgressAnalysis>>((ref) {
       final sessionsAsync = ref.watch(allSessionsProvider);
@@ -82,6 +141,9 @@ final muscleProgressAnalysisProvider =
       final progressService = ref.watch(progressServiceProvider);
       final today = ref.watch(todayProvider);
       final selectedMuscle = ref.watch(progressMuscleFilterProvider);
+      final selectedExerciseTemplateId = ref.watch(
+        progressExerciseFilterProvider,
+      );
       final range = ref.watch(progressRangeFilterProvider);
 
       if (sessionsAsync.hasError) {
@@ -106,6 +168,7 @@ final muscleProgressAnalysisProvider =
         sessions: sessionsAsync.value!,
         entries: entriesAsync.value!,
         muscle: selectedMuscle,
+        exerciseTemplateId: selectedExerciseTemplateId,
         rangeDays: range.days,
         today: today,
       );

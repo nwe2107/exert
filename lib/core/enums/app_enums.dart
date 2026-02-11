@@ -109,19 +109,13 @@ const Map<MuscleGroup, List<SpecificMuscle>> specificMusclesByGroup = {
     SpecificMuscle.calves,
     SpecificMuscle.adductors,
   ],
-  MuscleGroup.glutes: [
-    SpecificMuscle.gluteMax,
-    SpecificMuscle.gluteMed,
-  ],
+  MuscleGroup.glutes: [SpecificMuscle.gluteMax, SpecificMuscle.gluteMed],
   MuscleGroup.core: [
     SpecificMuscle.abs,
     SpecificMuscle.obliques,
     SpecificMuscle.spinalErectors,
   ],
-  MuscleGroup.cardio: [
-    SpecificMuscle.aerobic,
-    SpecificMuscle.anaerobic,
-  ],
+  MuscleGroup.cardio: [SpecificMuscle.aerobic, SpecificMuscle.anaerobic],
   MuscleGroup.mobility: [
     SpecificMuscle.hips,
     SpecificMuscle.thoracic,
@@ -132,10 +126,11 @@ const Map<MuscleGroup, List<SpecificMuscle>> specificMusclesByGroup = {
 
 extension EnumLabels on Enum {
   String get label {
-    final parts = name.replaceAllMapped(
+    final raw = toString().split('.').last;
+    final spaced = raw.replaceAllMapped(
       RegExp('([a-z])([A-Z])'),
       (match) => '${match.group(1)} ${match.group(2)}',
     );
-    return parts[0].toUpperCase() + parts.substring(1);
+    return spaced[0].toUpperCase() + spaced.substring(1);
   }
 }

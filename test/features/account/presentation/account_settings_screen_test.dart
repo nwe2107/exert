@@ -102,6 +102,9 @@ void main() {
       await tester.pumpAndSettle();
       await tester.tap(find.byKey(settingsDeleteAccountConfirmKey));
       await tester.pumpAndSettle();
+      await tester.enterText(find.byType(TextField).last, 'password');
+      await tester.tap(find.text('Confirm'));
+      await tester.pumpAndSettle();
 
       expect(authRepository.deleteAccountCallCount, 1);
       expect(workoutRepository.clearAllUserDataCallCount, 1);
@@ -132,6 +135,9 @@ void main() {
     await tester.tap(find.byKey(settingsDeleteAccountButtonKey));
     await tester.pumpAndSettle();
     await tester.tap(find.byKey(settingsDeleteAccountConfirmKey));
+    await tester.pumpAndSettle();
+    await tester.enterText(find.byType(TextField).last, 'password');
+    await tester.tap(find.text('Confirm'));
     await tester.pump();
     await tester.pump(const Duration(milliseconds: 200));
 
@@ -229,7 +235,7 @@ class _TestAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<void> deleteAccount({String? password}) async {
     deleteAccountCallCount += 1;
 
     if (deleteError != null) {

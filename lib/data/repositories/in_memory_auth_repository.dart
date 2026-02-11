@@ -96,7 +96,7 @@ class InMemoryAuthRepository implements AuthRepository {
   }
 
   @override
-  Future<void> deleteAccount() async {
+  Future<void> deleteAccount({String? password}) async {
     if (_currentSession == null) {
       throw const AuthException('No active account to delete.');
     }

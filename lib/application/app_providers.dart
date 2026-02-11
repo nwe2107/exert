@@ -5,6 +5,7 @@ import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:isar/isar.dart';
 
 import '../core/utils/date_utils.dart';
+import '../data/models/account_profile_model.dart';
 import '../data/models/exercise_entry_model.dart';
 import '../data/models/exercise_template_model.dart';
 import '../data/models/user_profile_model.dart';
@@ -14,15 +15,21 @@ import '../data/repositories/in_memory_auth_repository.dart';
 import '../data/repositories/isar_exercise_template_repository.dart';
 import '../data/repositories/isar_user_profile_repository.dart';
 import '../data/repositories/isar_workout_repository.dart';
+import '../data/repositories/firestore_exercise_template_repository.dart';
+import '../data/repositories/firestore_workout_repository.dart';
+import '../data/repositories/firestore_account_profile_repository.dart';
+import '../data/repositories/in_memory_account_profile_repository.dart';
 import '../domain/models/auth_session.dart';
 import '../domain/models/auth_status.dart';
 import '../domain/repositories/auth_repository.dart';
 import '../domain/repositories/exercise_template_repository.dart';
+import '../domain/repositories/account_profile_repository.dart';
 import '../domain/repositories/user_profile_repository.dart';
 import '../domain/repositories/workout_repository.dart';
 import '../domain/services/day_status_service.dart';
 import '../domain/services/heatmap_service.dart';
 import '../domain/services/progress_service.dart';
+import '../data/seeding/seed_service.dart';
 
 final isarProvider = Provider<Isar>((ref) {
   throw UnimplementedError('isarProvider must be overridden at startup.');
@@ -34,11 +41,41 @@ final firebaseAppProvider = Provider<FirebaseApp?>((ref) {
 
 final exerciseTemplateRepositoryProvider = Provider<ExerciseTemplateRepository>(
   (ref) {
+    final firebaseApp = ref.watch(firebaseAppProvider);
+    final session = ref.watch(authSessionProvider).value;
+    final firebaseUser = firebaseApp != null
+        ? FirebaseAuth.instanceFor(app: firebaseApp).currentUser
+        : null;
+
+    final userId = session?.userId ?? firebaseUser?.uid;
+
+    if (firebaseApp != null && userId != null) {
+      return FirestoreExerciseTemplateRepository(
+        FirebaseFirestore.instanceFor(app: firebaseApp),
+        userId,
+      );
+    }
+
     return IsarExerciseTemplateRepository(ref.watch(isarProvider));
   },
 );
 
 final workoutRepositoryProvider = Provider<WorkoutRepository>((ref) {
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  final session = ref.watch(authSessionProvider).value;
+  final firebaseUser = firebaseApp != null
+      ? FirebaseAuth.instanceFor(app: firebaseApp).currentUser
+      : null;
+
+  final userId = session?.userId ?? firebaseUser?.uid;
+
+  if (firebaseApp != null && userId != null) {
+    return FirestoreWorkoutRepository(
+      FirebaseFirestore.instanceFor(app: firebaseApp),
+      userId,
+    );
+  }
+
   return IsarWorkoutRepository(ref.watch(isarProvider));
 });
 
@@ -63,8 +100,24 @@ final todayProvider = Provider<DateTime>((ref) {
 });
 
 final allTemplatesProvider = StreamProvider<List<ExerciseTemplateModel>>((ref) {
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  final sessionAsync = ref.watch(authSessionProvider);
   final repository = ref.watch(exerciseTemplateRepositoryProvider);
-  return repository.watchAll();
+
+  return sessionAsync.when(
+    data: (session) {
+      if (firebaseApp != null && session != null) {
+        final firestoreRepo = FirestoreExerciseTemplateRepository(
+          FirebaseFirestore.instanceFor(app: firebaseApp),
+          session.userId,
+        );
+        return firestoreRepo.watchAll();
+      }
+      return repository.watchAll();
+    },
+    loading: () => const Stream<List<ExerciseTemplateModel>>.empty(),
+    error: (_, __) => repository.watchAll(),
+  );
 });
 
 final allSessionsProvider = StreamProvider<List<WorkoutSessionModel>>((ref) {
@@ -102,6 +155,51 @@ final authRepositoryProvider = Provider<AuthRepository>((ref) {
 final authSessionProvider = StreamProvider<AuthSession?>((ref) {
   final repository = ref.watch(authRepositoryProvider);
   return repository.watchSession();
+});
+
+/// Ensure default exercises are seeded for the authenticated user.
+/// Safe to call repeatedly; SeedService skips if names already exist.
+final ensureExerciseSeededProvider = FutureProvider<void>((ref) async {
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  final session = ref.watch(authSessionProvider).value;
+  final firebaseUser = firebaseApp != null
+      ? FirebaseAuth.instanceFor(app: firebaseApp).currentUser
+      : null;
+  final userId = session?.userId ?? firebaseUser?.uid;
+
+  if (userId == null) {
+    return;
+  }
+  final repo = ref.read(exerciseTemplateRepositoryProvider);
+  await SeedService(repo).seedIfNeeded();
+});
+
+final accountProfileRepositoryProvider = Provider<AccountProfileRepository>((
+  ref,
+) {
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  if (firebaseApp != null) {
+    return FirestoreAccountProfileRepository(
+      FirebaseFirestore.instanceFor(app: firebaseApp),
+    );
+  }
+  return InMemoryAccountProfileRepository();
+});
+
+final accountProfileProvider = StreamProvider<AccountProfileModel?>((ref) {
+  final repository = ref.watch(accountProfileRepositoryProvider);
+  final sessionAsync = ref.watch(authSessionProvider);
+
+  return sessionAsync.when(
+    data: (session) {
+      if (session == null) {
+        return Stream<AccountProfileModel?>.value(null);
+      }
+      return repository.watchProfile(session.userId);
+    },
+    loading: () => Stream<AccountProfileModel?>.value(null),
+    error: (_, __) => Stream<AccountProfileModel?>.value(null),
+  );
 });
 
 final authStatusProvider = Provider<AuthStatus>((ref) {

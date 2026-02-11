@@ -108,6 +108,88 @@ void main() {
       expect(analysis.workouts, isEmpty);
       expect(analysis.latestDelta, isNull);
     });
+
+    test('applies optional exercise filter for the selected muscle', () {
+      final service = ProgressService();
+      final sessions = [
+        _session(id: 1, date: DateTime(2026, 2, 2)),
+        _session(id: 2, date: DateTime(2026, 2, 8)),
+      ];
+      final entries = [
+        _entry(
+          id: 1,
+          sessionId: 1,
+          templateId: 200,
+          muscle: SpecificMuscle.abs,
+          reps: [10, 10],
+        ),
+        _entry(
+          id: 2,
+          sessionId: 1,
+          templateId: 201,
+          muscle: SpecificMuscle.abs,
+          reps: [30],
+        ),
+        _entry(
+          id: 3,
+          sessionId: 2,
+          templateId: 200,
+          muscle: SpecificMuscle.abs,
+          reps: [12, 8],
+        ),
+        _entry(
+          id: 4,
+          sessionId: 2,
+          templateId: 201,
+          muscle: SpecificMuscle.abs,
+          reps: [25],
+        ),
+      ];
+
+      final analysis = service.buildMuscleAnalysis(
+        sessions: sessions,
+        entries: entries,
+        muscle: SpecificMuscle.abs,
+        exerciseTemplateId: 200,
+        rangeDays: 30,
+        today: DateTime(2026, 2, 9),
+      );
+
+      expect(analysis.workouts.length, 2);
+      expect(analysis.workouts[0].totalReps, 20);
+      expect(analysis.workouts[1].totalReps, 20);
+      expect(analysis.workouts[0].totalSets, 2);
+      expect(analysis.workouts[1].totalSets, 2);
+      expect(analysis.latestDelta, isNotNull);
+      expect(analysis.latestDelta!.deltaReps, 0);
+      expect(analysis.latestDelta!.deltaSets, 0);
+    });
+
+    test('returns empty when selected exercise has no entries', () {
+      final service = ProgressService();
+      final sessions = [_session(id: 1, date: DateTime(2026, 2, 8))];
+      final entries = [
+        _entry(
+          id: 1,
+          sessionId: 1,
+          templateId: 200,
+          muscle: SpecificMuscle.abs,
+          reps: [10, 12],
+        ),
+      ];
+
+      final analysis = service.buildMuscleAnalysis(
+        sessions: sessions,
+        entries: entries,
+        muscle: SpecificMuscle.abs,
+        exerciseTemplateId: 999,
+        rangeDays: 30,
+        today: DateTime(2026, 2, 9),
+      );
+
+      expect(analysis.workouts, isEmpty);
+      expect(analysis.latestDelta, isNull);
+    });
   });
 }
 
@@ -127,13 +209,14 @@ ExerciseEntryModel _entry({
   required int sessionId,
   required SpecificMuscle muscle,
   required List<int> reps,
+  int? templateId,
 }) {
   final now = DateTime(2026, 2, 9);
   final group = _groupForMuscle(muscle);
   return ExerciseEntryModel()
     ..id = id
     ..workoutSessionId = sessionId
-    ..exerciseTemplateId = 100 + id
+    ..exerciseTemplateId = templateId ?? (100 + id)
     ..schemeType = SchemeType.standard
     ..feltDifficulty = DifficultyLevel.moderate
     ..sets = reps

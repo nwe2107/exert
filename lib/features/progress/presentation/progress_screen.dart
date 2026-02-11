@@ -16,6 +16,10 @@ class ProgressScreen extends ConsumerWidget {
     final snapshotAsync = ref.watch(progressSnapshotProvider);
     final analysisAsync = ref.watch(muscleProgressAnalysisProvider);
     final selectedMuscle = ref.watch(progressMuscleFilterProvider);
+    final selectedExerciseTemplateId = ref.watch(
+      progressExerciseFilterProvider,
+    );
+    final exerciseOptionsAsync = ref.watch(progressExerciseOptionsProvider);
     final selectedRange = ref.watch(progressRangeFilterProvider);
     final selectedChartType = ref.watch(progressChartTypeProvider);
 
@@ -48,6 +52,10 @@ class ProgressScreen extends ConsumerWidget {
 
     final snapshot = snapshotAsync.value!;
     final analysis = analysisAsync.value!;
+    final selectedExerciseLabel = _exerciseLabelForTemplate(
+      options: exerciseOptionsAsync.valueOrNull ?? const [],
+      templateId: selectedExerciseTemplateId,
+    );
 
     return Scaffold(
       appBar: AppBar(title: const Text('Progress')),
@@ -104,7 +112,54 @@ class ProgressScreen extends ConsumerWidget {
                       }
                       ref.read(progressMuscleFilterProvider.notifier).state =
                           SpecificMuscle.values[value];
+                      ref.read(progressExerciseFilterProvider.notifier).state =
+                          null;
                     },
+                  ),
+                  const SizedBox(height: 12),
+                  exerciseOptionsAsync.when(
+                    data: (options) {
+                      final selectedExercise =
+                          options
+                              .where(
+                                (option) =>
+                                    option.templateId ==
+                                    selectedExerciseTemplateId,
+                              )
+                              .isNotEmpty
+                          ? selectedExerciseTemplateId
+                          : null;
+
+                      return DropdownButtonFormField<int?>(
+                        isExpanded: true,
+                        initialValue: selectedExercise,
+                        decoration: const InputDecoration(
+                          labelText: 'Exercise (optional)',
+                          border: OutlineInputBorder(),
+                        ),
+                        items: [
+                          const DropdownMenuItem<int?>(
+                            value: null,
+                            child: Text('All exercises'),
+                          ),
+                          ...options.map(
+                            (option) => DropdownMenuItem<int?>(
+                              value: option.templateId,
+                              child: Text(option.label),
+                            ),
+                          ),
+                        ],
+                        onChanged: (value) {
+                          ref
+                                  .read(progressExerciseFilterProvider.notifier)
+                                  .state =
+                              value;
+                        },
+                      );
+                    },
+                    loading: () => const LinearProgressIndicator(),
+                    error: (error, stackTrace) =>
+                        Text('Failed to load exercise filter: $error'),
                   ),
                   const SizedBox(height: 12),
                   SegmentedButton<ProgressRangeFilter>(
@@ -144,16 +199,22 @@ class ProgressScreen extends ConsumerWidget {
           ),
           const SizedBox(height: 8),
           if (analysis.workouts.isEmpty)
-            const Card(
+            Card(
               child: Padding(
-                padding: EdgeInsets.all(14),
+                padding: const EdgeInsets.all(14),
                 child: Text(
-                  'No workouts found for this muscle in the selected range.',
+                  selectedExerciseLabel == null
+                      ? 'No workouts found for this muscle in the selected range.'
+                      : 'No workouts found for ${analysis.muscle.label} • '
+                            '$selectedExerciseLabel in the selected range.',
                 ),
               ),
             )
           else ...[
-            _DeltaSummaryCard(analysis: analysis),
+            _DeltaSummaryCard(
+              analysis: analysis,
+              selectedExerciseLabel: selectedExerciseLabel,
+            ),
             _buildTrendChart(
               title: 'Total reps per workout',
               chartType: selectedChartType,
@@ -175,7 +236,10 @@ class ProgressScreen extends ConsumerWidget {
               metric: (point) => point.workScore,
               color: Colors.orange.shade700,
             ),
-            _RecentWorkoutComparisonCard(points: analysis.workouts),
+            _RecentWorkoutComparisonCard(
+              points: analysis.workouts,
+              selectedExerciseLabel: selectedExerciseLabel,
+            ),
           ],
         ],
       ),
@@ -294,12 +358,19 @@ class _ProgressCard extends StatelessWidget {
 }
 
 class _DeltaSummaryCard extends StatelessWidget {
-  const _DeltaSummaryCard({required this.analysis});
+  const _DeltaSummaryCard({
+    required this.analysis,
+    required this.selectedExerciseLabel,
+  });
 
   final MuscleProgressAnalysis analysis;
+  final String? selectedExerciseLabel;
 
   @override
   Widget build(BuildContext context) {
+    final scopedLabel = selectedExerciseLabel == null
+        ? analysis.muscle.label
+        : '${analysis.muscle.label} • $selectedExerciseLabel';
     final delta = analysis.latestDelta;
     if (delta == null) {
       return Card(
@@ -307,7 +378,7 @@ class _DeltaSummaryCard extends StatelessWidget {
         child: Padding(
           padding: const EdgeInsets.all(14),
           child: Text(
-            'Add one more ${analysis.muscle.label} workout to unlock sequential deltas.',
+            'Add one more $scopedLabel workout to unlock sequential deltas.',
           ),
         ),
       );
@@ -321,7 +392,7 @@ class _DeltaSummaryCard extends StatelessWidget {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             Text(
-              'Latest vs previous workout (${analysis.muscle.label})',
+              'Latest vs previous workout ($scopedLabel)',
               style: Theme.of(context).textTheme.titleMedium,
             ),
             const SizedBox(height: 10),
@@ -693,9 +764,13 @@ bool _sameIntList(List<int> a, List<int> b) {
 }
 
 class _RecentWorkoutComparisonCard extends StatelessWidget {
-  const _RecentWorkoutComparisonCard({required this.points});
+  const _RecentWorkoutComparisonCard({
+    required this.points,
+    required this.selectedExerciseLabel,
+  });
 
   final List<MuscleWorkoutPoint> points;
+  final String? selectedExerciseLabel;
 
   @override
   Widget build(BuildContext context) {
@@ -712,7 +787,9 @@ class _RecentWorkoutComparisonCard extends StatelessWidget {
             Padding(
               padding: const EdgeInsets.fromLTRB(8, 6, 8, 10),
               child: Text(
-                'Recent workout comparisons',
+                selectedExerciseLabel == null
+                    ? 'Recent workout comparisons'
+                    : 'Recent workout comparisons • $selectedExerciseLabel',
                 style: Theme.of(context).textTheme.titleMedium,
               ),
             ),
@@ -721,23 +798,57 @@ class _RecentWorkoutComparisonCard extends StatelessWidget {
               final previous = index + 1 < descending.length
                   ? descending[index + 1]
                   : null;
-              final deltaLabel = previous == null
-                  ? 'Baseline'
-                  : 'Reps ${_signedInt(current.totalReps - previous.totalReps)}'
-                        ' • Sets ${_signedInt(current.totalSets - previous.totalSets)}';
-
-              return ListTile(
-                dense: true,
-                title: Text(dateFormat.format(current.date)),
-                subtitle: Text(
-                  'Sets ${current.totalSets} • Reps ${current.totalReps} • '
-                  'Avg ${current.averageRepsPerSet.toStringAsFixed(1)} • '
-                  'Max ${current.maxReps}',
-                ),
-                trailing: Text(
-                  deltaLabel,
-                  textAlign: TextAlign.end,
-                  style: Theme.of(context).textTheme.bodySmall,
+              return Padding(
+                padding: const EdgeInsets.fromLTRB(8, 4, 8, 6),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Expanded(
+                          child: Text(
+                            dateFormat.format(current.date),
+                            style: Theme.of(context).textTheme.titleSmall,
+                          ),
+                        ),
+                        if (previous == null)
+                          const _WorkoutDeltaBadge(
+                            label: 'Baseline',
+                            delta: null,
+                          )
+                        else
+                          Wrap(
+                            spacing: 6,
+                            runSpacing: 6,
+                            children: [
+                              _WorkoutDeltaBadge(
+                                label: 'Reps',
+                                delta: current.totalReps - previous.totalReps,
+                              ),
+                              _WorkoutDeltaBadge(
+                                label: 'Sets',
+                                delta: current.totalSets - previous.totalSets,
+                              ),
+                              _WorkoutDeltaBadge(
+                                label: 'Volume',
+                                delta: current.workScore - previous.workScore,
+                              ),
+                            ],
+                          ),
+                      ],
+                    ),
+                    const SizedBox(height: 4),
+                    Text(
+                      'Sets ${current.totalSets} • Reps ${current.totalReps} • '
+                      'Avg ${current.averageRepsPerSet.toStringAsFixed(1)} • '
+                      'Max ${current.maxReps} • Volume ${current.workScore}',
+                    ),
+                    if (index + 1 < descending.length) ...[
+                      const SizedBox(height: 6),
+                      const Divider(height: 1),
+                    ],
+                  ],
                 ),
               );
             }),
@@ -746,6 +857,71 @@ class _RecentWorkoutComparisonCard extends StatelessWidget {
       ),
     );
   }
+}
+
+class _WorkoutDeltaBadge extends StatelessWidget {
+  const _WorkoutDeltaBadge({required this.label, required this.delta});
+
+  final String label;
+  final int? delta;
+
+  @override
+  Widget build(BuildContext context) {
+    final color = _badgeColor(context);
+    final valueText = _badgeText();
+    final badgeText = delta == null ? valueText : '$label $valueText';
+
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 6),
+      decoration: BoxDecoration(
+        color: color.withValues(alpha: 0.12),
+        borderRadius: BorderRadius.circular(999),
+        border: Border.all(color: color.withValues(alpha: 0.55)),
+      ),
+      child: Text(
+        badgeText,
+        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+          color: color,
+          fontWeight: FontWeight.w600,
+        ),
+      ),
+    );
+  }
+
+  String _badgeText() {
+    if (delta == null) {
+      return label;
+    }
+    if (delta == 0) {
+      return 'No change';
+    }
+    return _signedInt(delta!);
+  }
+
+  Color _badgeColor(BuildContext context) {
+    if (delta == null || delta == 0) {
+      return Theme.of(context).colorScheme.onSurfaceVariant;
+    }
+    if (delta! > 0) {
+      return Colors.green.shade700;
+    }
+    return Colors.red.shade700;
+  }
+}
+
+String? _exerciseLabelForTemplate({
+  required List<ProgressExerciseOption> options,
+  required int? templateId,
+}) {
+  if (templateId == null) {
+    return null;
+  }
+  for (final option in options) {
+    if (option.templateId == templateId) {
+      return option.label;
+    }
+  }
+  return 'Exercise $templateId';
 }
 
 String _signedInt(int value) {

@@ -1,8 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:cloud_firestore/cloud_firestore.dart';
 
 import '../../../application/app_providers.dart';
 import '../../../domain/repositories/auth_repository.dart';
+import '../../../data/seeding/seed_service.dart';
+import '../../../data/repositories/firestore_exercise_template_repository.dart';
 
 const String _demoEmailHint = 'demo@exert.app';
 const String _demoPasswordHint = 'exert1234';
@@ -238,10 +241,20 @@ class _LoginScreenState extends ConsumerState<LoginScreen> {
           password: _passwordController.text,
         );
       } else {
-        await repository.signUpWithEmailAndPassword(
+        final session = await repository.signUpWithEmailAndPassword(
           email: _emailController.text,
           password: _passwordController.text,
         );
+
+        // Seed defaults only once when the account is first created.
+        final firebaseApp = ref.read(firebaseAppProvider);
+        final templatesRepo = firebaseApp != null
+            ? FirestoreExerciseTemplateRepository(
+                FirebaseFirestore.instanceFor(app: firebaseApp),
+                session.userId,
+              )
+            : ref.read(exerciseTemplateRepositoryProvider);
+        await SeedService(templatesRepo).seedIfNeeded();
       }
     } on AuthException catch (error) {
       if (!mounted) {
