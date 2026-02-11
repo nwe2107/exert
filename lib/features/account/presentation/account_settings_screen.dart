@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../application/app_providers.dart';
 import '../../../domain/repositories/auth_repository.dart';
 
+const settingsPersonalInfoButtonKey = ValueKey('settings-personal-info-button');
 const settingsSignOutButtonKey = ValueKey('settings-sign-out-button');
 const settingsDeleteAccountButtonKey = ValueKey(
   'settings-delete-account-button',
@@ -59,6 +61,13 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                 ],
               ),
             ),
+          ),
+          const SizedBox(height: 12),
+          FilledButton.icon(
+            key: settingsPersonalInfoButtonKey,
+            onPressed: () => context.push('/account/personal-info'),
+            icon: const Icon(Icons.badge_outlined),
+            label: const Text('Edit Personal Information'),
           ),
           const SizedBox(height: 12),
           Card(
@@ -195,7 +204,7 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
   }
 
   Future<String?> _promptForPassword() async {
-    final controller = TextEditingController();
+    var password = '';
     final result = await showDialog<String>(
       context: context,
       builder: (dialogContext) {
@@ -209,8 +218,8 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
               ),
               const SizedBox(height: 12),
               TextField(
-                controller: controller,
                 obscureText: true,
+                onChanged: (value) => password = value.trim(),
                 decoration: const InputDecoration(
                   labelText: 'Password',
                   border: OutlineInputBorder(),
@@ -224,15 +233,13 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
               child: const Text('Cancel'),
             ),
             FilledButton(
-              onPressed: () =>
-                  Navigator.of(dialogContext).pop(controller.text.trim()),
+              onPressed: () => Navigator.of(dialogContext).pop(password),
               child: const Text('Confirm'),
             ),
           ],
         );
       },
     );
-    controller.dispose();
     if (result == null || result.isEmpty) {
       return null;
     }

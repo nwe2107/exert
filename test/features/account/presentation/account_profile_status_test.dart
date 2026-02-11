@@ -2,6 +2,7 @@ import 'dart:async';
 
 import 'package:exert/application/app_providers.dart';
 import 'package:exert/data/models/account_profile_model.dart';
+import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/account_profile_repository.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
 import 'package:flutter/material.dart';
@@ -19,6 +20,7 @@ void main() {
       ProviderScope(
         overrides: [
           accountProfileRepositoryProvider.overrideWithValue(repository),
+          authSessionProvider.overrideWith((ref) => Stream.value(_testSession)),
         ],
         child: const MaterialApp(home: AccountScreen()),
       ),
@@ -48,6 +50,7 @@ void main() {
       ProviderScope(
         overrides: [
           accountProfileRepositoryProvider.overrideWithValue(repository),
+          authSessionProvider.overrideWith((ref) => Stream.value(_testSession)),
         ],
         child: const MaterialApp(home: AccountScreen()),
       ),
@@ -59,6 +62,12 @@ void main() {
     expect(find.text('Edit Account Profile'), findsOneWidget);
   });
 }
+
+final _testSession = AuthSession(
+  userId: 'user_1',
+  email: 'test@exert.app',
+  signedInAt: DateTime(2026, 2, 9),
+);
 
 class _FakeAccountProfileRepository implements AccountProfileRepository {
   _FakeAccountProfileRepository({AccountProfileModel? initialProfile})

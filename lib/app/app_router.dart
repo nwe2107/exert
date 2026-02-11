@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
@@ -6,24 +7,36 @@ import '../core/utils/route_date_codec.dart';
 import '../features/account/presentation/account_screen.dart';
 import '../features/account/presentation/account_settings_screen.dart';
 import '../features/account/presentation/account_profile_form_screen.dart';
+import '../features/account/presentation/personal_info_form_screen.dart';
 import '../features/auth/presentation/login_screen.dart';
 import '../features/calendar/presentation/calendar_screen.dart';
 import '../features/heatmap/presentation/heatmap_screen.dart';
 import '../features/library/presentation/exercise_template_form_screen.dart';
 import '../features/library/presentation/library_screen.dart';
+import '../features/onboarding/presentation/get_started_questionnaire_screen.dart';
 import '../features/progress/presentation/progress_screen.dart';
 import '../features/shell/presentation/root_shell_scaffold.dart';
 import '../features/today/presentation/today_screen.dart';
 import '../features/workout/presentation/workout_log_screen.dart';
 import 'auth_redirect.dart';
 import 'go_router_refresh_stream.dart';
+import 'personal_info_redirect_state.dart';
 
 final appRouterProvider = Provider<GoRouter>((ref) {
   final authRepository = ref.watch(authRepositoryProvider);
-  final refreshListenable = GoRouterRefreshStream(
+  final userProfileRepository = ref.watch(userProfileRepositoryProvider);
+  final authRefreshListenable = GoRouterRefreshStream(
     authRepository.watchSession(),
   );
-  ref.onDispose(refreshListenable.dispose);
+  final personalInfoRedirectState = PersonalInfoRedirectState(
+    userProfileRepository.watchProfile(),
+  );
+  final refreshListenable = Listenable.merge([
+    authRefreshListenable,
+    personalInfoRedirectState,
+  ]);
+  ref.onDispose(authRefreshListenable.dispose);
+  ref.onDispose(personalInfoRedirectState.dispose);
 
   return GoRouter(
     initialLocation: todayRoutePath,
@@ -32,12 +45,19 @@ final appRouterProvider = Provider<GoRouter>((ref) {
       return authRedirect(
         session: authRepository.currentSession,
         matchedLocation: state.matchedLocation,
+        isPersonalInfoKnown: personalInfoRedirectState.isKnown,
+        hasCompletedPersonalInfo:
+            personalInfoRedirectState.hasCompletedPersonalInfo,
       );
     },
     routes: [
       GoRoute(
         path: loginRoutePath,
         builder: (context, state) => const LoginScreen(),
+      ),
+      GoRoute(
+        path: getStartedRoutePath,
+        builder: (context, state) => const GetStartedQuestionnaireScreen(),
       ),
       StatefulShellRoute.indexedStack(
         builder: (context, state, navigationShell) {
@@ -93,6 +113,10 @@ final appRouterProvider = Provider<GoRouter>((ref) {
           GoRoute(
             path: 'profile',
             builder: (context, state) => const AccountProfileFormScreen(),
+          ),
+          GoRoute(
+            path: 'personal-info',
+            builder: (context, state) => const PersonalInfoFormScreen(),
           ),
           GoRoute(
             path: 'settings',

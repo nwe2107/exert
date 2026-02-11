@@ -2,10 +2,12 @@ import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
+import 'package:exert/data/models/user_profile_model.dart';
 import 'package:exert/data/models/workout_session_model.dart';
 import 'package:exert/domain/models/auth_session.dart';
 import 'package:exert/domain/repositories/auth_repository.dart';
 import 'package:exert/domain/repositories/account_profile_repository.dart';
+import 'package:exert/domain/repositories/user_profile_repository.dart';
 import 'package:exert/data/models/account_profile_model.dart';
 import 'package:exert/features/account/presentation/account_screen.dart';
 import 'package:exert/features/account/presentation/account_settings_screen.dart';
@@ -27,6 +29,9 @@ void main() {
             ),
             accountProfileRepositoryProvider.overrideWithValue(
               _FakeAccountProfileRepository(),
+            ),
+            userProfileRepositoryProvider.overrideWithValue(
+              _FakeUserProfileRepository(),
             ),
             todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
             allSessionsProvider.overrideWith(
@@ -154,4 +159,28 @@ class _FakeAccountProfileRepository implements AccountProfileRepository {
 
   @override
   Future<void> deleteProfile(String uid) async {}
+}
+
+class _FakeUserProfileRepository implements UserProfileRepository {
+  final UserProfileModel _profile = UserProfileModel()
+    ..age = 30
+    ..height = 175
+    ..weight = 75
+    ..gender = UserGender.male;
+
+  @override
+  Stream<UserProfileModel?> watchProfile() {
+    return Stream<UserProfileModel?>.value(_profile);
+  }
+
+  @override
+  Future<UserProfileModel?> getProfile() async {
+    return _profile;
+  }
+
+  @override
+  Future<void> saveProfile(UserProfileModel profile) async {}
+
+  @override
+  Future<void> clearProfile() async {}
 }

@@ -15,6 +15,7 @@ import 'package:exert/features/account/presentation/account_settings_screen.dart
 import 'package:exert/features/auth/presentation/login_screen.dart';
 import 'package:exert/features/today/presentation/today_screen.dart';
 import 'package:exert/features/workout/presentation/workout_providers.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:isar/isar.dart';
@@ -27,6 +28,7 @@ void main() {
     final workoutRepository = _FakeWorkoutRepository();
     final userProfileRepository = _FakeUserProfileRepository();
     addTearDown(authRepository.dispose);
+    addTearDown(userProfileRepository.dispose);
 
     await _pumpAuthenticatedApp(
       tester,
@@ -63,6 +65,7 @@ void main() {
     final workoutRepository = _FakeWorkoutRepository();
     final userProfileRepository = _FakeUserProfileRepository();
     addTearDown(authRepository.dispose);
+    addTearDown(userProfileRepository.dispose);
 
     await _pumpAuthenticatedApp(
       tester,
@@ -89,6 +92,7 @@ void main() {
       final workoutRepository = _FakeWorkoutRepository();
       final userProfileRepository = _FakeUserProfileRepository();
       addTearDown(authRepository.dispose);
+      addTearDown(userProfileRepository.dispose);
 
       await _pumpAuthenticatedApp(
         tester,
@@ -123,6 +127,7 @@ void main() {
     final workoutRepository = _FakeWorkoutRepository();
     final userProfileRepository = _FakeUserProfileRepository();
     addTearDown(authRepository.dispose);
+    addTearDown(userProfileRepository.dispose);
 
     await _pumpAuthenticatedApp(
       tester,
@@ -338,23 +343,41 @@ class _FakeWorkoutRepository implements WorkoutRepository {
 }
 
 class _FakeUserProfileRepository implements UserProfileRepository {
+  final StreamController<UserProfileModel?> _profileController =
+      StreamController<UserProfileModel?>.broadcast();
+  UserProfileModel? _profile = UserProfileModel()
+    ..age = 30
+    ..height = 178
+    ..weight = 80
+    ..gender = UserGender.male;
+
   int clearProfileCallCount = 0;
 
   @override
-  Stream<UserProfileModel?> watchProfile() {
-    return Stream<UserProfileModel?>.value(null);
+  Stream<UserProfileModel?> watchProfile() async* {
+    yield _profile;
+    yield* _profileController.stream;
   }
 
   @override
   Future<UserProfileModel?> getProfile() async {
-    return null;
+    return _profile;
   }
 
   @override
-  Future<void> saveProfile(UserProfileModel profile) async {}
+  Future<void> saveProfile(UserProfileModel profile) async {
+    _profile = profile;
+    _profileController.add(profile);
+  }
 
   @override
   Future<void> clearProfile() async {
     clearProfileCallCount += 1;
+    _profile = null;
+    _profileController.add(null);
+  }
+
+  void dispose() {
+    _profileController.close();
   }
 }
