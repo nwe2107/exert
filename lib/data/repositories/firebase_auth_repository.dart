@@ -81,8 +81,8 @@ class FirebaseAuthRepository implements AuthRepository {
 
     try {
       // Attempt delete directly; if recent auth is required we handle below.
+      await _deleteUserData(user.uid);
       await user.delete();
-      await _firestore.collection('users').doc(user.uid).delete();
     } on FirebaseAuthException catch (error) {
       if (error.code == 'requires-recent-login') {
         if (password == null || (user.email ?? '').isEmpty) {
@@ -97,8 +97,8 @@ class FirebaseAuthRepository implements AuthRepository {
             password: password,
           );
           await user.reauthenticateWithCredential(credential);
+          await _deleteUserData(user.uid);
           await user.delete();
-          await _firestore.collection('users').doc(user.uid).delete();
         } on FirebaseAuthException catch (reauthError) {
           throw AuthException(_mapFirebaseAuthError(reauthError));
         }
@@ -170,5 +170,30 @@ class FirebaseAuthRepository implements AuthRepository {
       default:
         return error.message ?? 'Authentication failed. Please try again.';
     }
+  }
+
+  Future<void> _deleteUserData(String uid) async {
+    final userDoc = _firestore.collection('users').doc(uid);
+
+    // Delete exercises.
+    final exercisesSnap = await userDoc.collection('exercises').get();
+    for (final doc in exercisesSnap.docs) {
+      await doc.reference.delete();
+    }
+
+    // Delete sessions and nested entries.
+    final sessionsSnap = await userDoc.collection('sessions').get();
+    for (final sessionDoc in sessionsSnap.docs) {
+      final entriesSnap = await sessionDoc.reference
+          .collection('entries')
+          .get();
+      for (final entry in entriesSnap.docs) {
+        await entry.reference.delete();
+      }
+      await sessionDoc.reference.delete();
+    }
+
+    // Delete profile doc.
+    await userDoc.delete();
   }
 }
