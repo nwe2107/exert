@@ -290,6 +290,10 @@ ExerciseTemplateModel _cloneTemplate(ExerciseTemplateModel source) {
     ..defaultDifficulty = source.defaultDifficulty
     ..equipment = source.equipment
     ..notes = source.notes
+    ..isCompound = source.isCompound
+    ..compoundExerciseTemplateIds = source.compoundExerciseTemplateIds.toList(
+      growable: false,
+    )
     ..createdAt = source.createdAt
     ..updatedAt = source.updatedAt
     ..deletedAt = source.deletedAt;

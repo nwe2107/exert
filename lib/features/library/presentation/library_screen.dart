@@ -97,10 +97,14 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       shape: RoundedRectangleBorder(
                         borderRadius: BorderRadius.circular(12),
                       ),
-                      tileColor: Theme.of(context).colorScheme.surfaceContainerLow,
+                      tileColor: Theme.of(
+                        context,
+                      ).colorScheme.surfaceContainerLow,
                       title: Text(template.name),
                       subtitle: Text(
-                        '${template.muscleGroup.label} • ${template.specificMuscle.label}',
+                        template.isCompound
+                            ? 'Compound • ${template.compoundExerciseTemplateIds.length} exercises'
+                            : '${template.muscleGroup.label} • ${template.specificMuscle.label}',
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/library/edit/${template.id}'),

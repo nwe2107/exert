@@ -129,6 +129,10 @@ class FirestoreExerciseTemplateRepository
       EquipmentType.values,
     );
     model.notes = data['notes'] as String?;
+    model.isCompound = data['isCompound'] == true;
+    model.compoundExerciseTemplateIds = _parseIntList(
+      data['compoundExerciseTemplateIds'],
+    );
     model.progressionSettings = _parseProgression(data['progressionSettings']);
     model.createdAt = _parseDate(data['createdAt']);
     model.updatedAt = _parseDate(data['updatedAt']);
@@ -148,6 +152,8 @@ class FirestoreExerciseTemplateRepository
       'defaultDifficulty': model.defaultDifficulty.name,
       'equipment': model.equipment?.name,
       'notes': model.notes,
+      'isCompound': model.isCompound,
+      'compoundExerciseTemplateIds': model.compoundExerciseTemplateIds,
       'progressionSettings': model.progressionSettings == null
           ? null
           : {
@@ -206,5 +212,13 @@ class FirestoreExerciseTemplateRepository
     if (raw is num) return raw.toInt();
     if (raw is String) return int.tryParse(raw);
     return null;
+  }
+
+  List<int> _parseIntList(Object? raw) {
+    if (raw is! Iterable) {
+      return const [];
+    }
+    final parsed = raw.map(_asInt).whereType<int>().toList(growable: false);
+    return parsed;
   }
 }

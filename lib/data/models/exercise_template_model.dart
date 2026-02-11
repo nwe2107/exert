@@ -39,6 +39,10 @@ class ExerciseTemplateModel {
 
   String? notes;
 
+  bool isCompound = false;
+
+  List<int> compoundExerciseTemplateIds = [];
+
   ProgressionSettingsModel? progressionSettings;
 
   late DateTime createdAt;

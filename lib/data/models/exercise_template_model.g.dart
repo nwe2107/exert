@@ -18,74 +18,84 @@ const ExerciseTemplateModelSchema = CollectionSchema(
   name: r'ExerciseTemplateModel',
   id: 3623981952408253446,
   properties: {
-    r'createdAt': PropertySchema(
+    r'compoundExerciseTemplateIds': PropertySchema(
       id: 0,
+      name: r'compoundExerciseTemplateIds',
+      type: IsarType.longList,
+    ),
+    r'createdAt': PropertySchema(
+      id: 1,
       name: r'createdAt',
       type: IsarType.dateTime,
     ),
     r'defaultDifficulty': PropertySchema(
-      id: 1,
+      id: 2,
       name: r'defaultDifficulty',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModeldefaultDifficultyEnumValueMap,
     ),
     r'deletedAt': PropertySchema(
-      id: 2,
+      id: 3,
       name: r'deletedAt',
       type: IsarType.dateTime,
     ),
     r'equipment': PropertySchema(
-      id: 3,
+      id: 4,
       name: r'equipment',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelequipmentEnumValueMap,
     ),
+    r'isCompound': PropertySchema(
+      id: 5,
+      name: r'isCompound',
+      type: IsarType.bool,
+    ),
     r'lowercaseName': PropertySchema(
-      id: 4,
+      id: 6,
       name: r'lowercaseName',
       type: IsarType.string,
     ),
     r'mediaType': PropertySchema(
-      id: 5,
+      id: 7,
       name: r'mediaType',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelmediaTypeEnumValueMap,
     ),
     r'mediaUrl': PropertySchema(
-      id: 6,
+      id: 8,
       name: r'mediaUrl',
       type: IsarType.string,
     ),
     r'muscleGroup': PropertySchema(
-      id: 7,
+      id: 9,
       name: r'muscleGroup',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelmuscleGroupEnumValueMap,
     ),
     r'name': PropertySchema(
-      id: 8,
+      id: 10,
       name: r'name',
       type: IsarType.string,
     ),
     r'notes': PropertySchema(
-      id: 9,
+      id: 11,
       name: r'notes',
       type: IsarType.string,
     ),
     r'progressionSettings': PropertySchema(
-      id: 10,
+      id: 12,
       name: r'progressionSettings',
       type: IsarType.object,
       target: r'ProgressionSettingsModel',
     ),
     r'specificMuscle': PropertySchema(
-      id: 11,
+      id: 13,
       name: r'specificMuscle',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelspecificMuscleEnumValueMap,
     ),
     r'updatedAt': PropertySchema(
-      id: 12,
+      id: 14,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -126,6 +136,7 @@ int _exerciseTemplateModelEstimateSize(
   Map<Type, List<int>> allOffsets,
 ) {
   var bytesCount = offsets.last;
+  bytesCount += 3 + object.compoundExerciseTemplateIds.length * 8;
   bytesCount += 3 + object.defaultDifficulty.name.length * 3;
   {
     final value = object.equipment;
@@ -172,24 +183,26 @@ void _exerciseTemplateModelSerialize(
   List<int> offsets,
   Map<Type, List<int>> allOffsets,
 ) {
-  writer.writeDateTime(offsets[0], object.createdAt);
-  writer.writeString(offsets[1], object.defaultDifficulty.name);
-  writer.writeDateTime(offsets[2], object.deletedAt);
-  writer.writeString(offsets[3], object.equipment?.name);
-  writer.writeString(offsets[4], object.lowercaseName);
-  writer.writeString(offsets[5], object.mediaType?.name);
-  writer.writeString(offsets[6], object.mediaUrl);
-  writer.writeString(offsets[7], object.muscleGroup.name);
-  writer.writeString(offsets[8], object.name);
-  writer.writeString(offsets[9], object.notes);
+  writer.writeLongList(offsets[0], object.compoundExerciseTemplateIds);
+  writer.writeDateTime(offsets[1], object.createdAt);
+  writer.writeString(offsets[2], object.defaultDifficulty.name);
+  writer.writeDateTime(offsets[3], object.deletedAt);
+  writer.writeString(offsets[4], object.equipment?.name);
+  writer.writeBool(offsets[5], object.isCompound);
+  writer.writeString(offsets[6], object.lowercaseName);
+  writer.writeString(offsets[7], object.mediaType?.name);
+  writer.writeString(offsets[8], object.mediaUrl);
+  writer.writeString(offsets[9], object.muscleGroup.name);
+  writer.writeString(offsets[10], object.name);
+  writer.writeString(offsets[11], object.notes);
   writer.writeObject<ProgressionSettingsModel>(
-    offsets[10],
+    offsets[12],
     allOffsets,
     ProgressionSettingsModelSchema.serialize,
     object.progressionSettings,
   );
-  writer.writeString(offsets[11], object.specificMuscle.name);
-  writer.writeDateTime(offsets[12], object.updatedAt);
+  writer.writeString(offsets[13], object.specificMuscle.name);
+  writer.writeDateTime(offsets[14], object.updatedAt);
 }
 
 ExerciseTemplateModel _exerciseTemplateModelDeserialize(
@@ -199,33 +212,35 @@ ExerciseTemplateModel _exerciseTemplateModelDeserialize(
   Map<Type, List<int>> allOffsets,
 ) {
   final object = ExerciseTemplateModel();
-  object.createdAt = reader.readDateTime(offsets[0]);
+  object.compoundExerciseTemplateIds = reader.readLongList(offsets[0]) ?? [];
+  object.createdAt = reader.readDateTime(offsets[1]);
   object.defaultDifficulty =
       _ExerciseTemplateModeldefaultDifficultyValueEnumMap[
-              reader.readStringOrNull(offsets[1])] ??
+              reader.readStringOrNull(offsets[2])] ??
           DifficultyLevel.easy;
-  object.deletedAt = reader.readDateTimeOrNull(offsets[2]);
+  object.deletedAt = reader.readDateTimeOrNull(offsets[3]);
   object.equipment = _ExerciseTemplateModelequipmentValueEnumMap[
-      reader.readStringOrNull(offsets[3])];
+      reader.readStringOrNull(offsets[4])];
   object.id = id;
+  object.isCompound = reader.readBool(offsets[5]);
   object.mediaType = _ExerciseTemplateModelmediaTypeValueEnumMap[
-      reader.readStringOrNull(offsets[5])];
-  object.mediaUrl = reader.readStringOrNull(offsets[6]);
+      reader.readStringOrNull(offsets[7])];
+  object.mediaUrl = reader.readStringOrNull(offsets[8]);
   object.muscleGroup = _ExerciseTemplateModelmuscleGroupValueEnumMap[
-          reader.readStringOrNull(offsets[7])] ??
+          reader.readStringOrNull(offsets[9])] ??
       MuscleGroup.chest;
-  object.name = reader.readString(offsets[8]);
-  object.notes = reader.readStringOrNull(offsets[9]);
+  object.name = reader.readString(offsets[10]);
+  object.notes = reader.readStringOrNull(offsets[11]);
   object.progressionSettings =
       reader.readObjectOrNull<ProgressionSettingsModel>(
-    offsets[10],
+    offsets[12],
     ProgressionSettingsModelSchema.deserialize,
     allOffsets,
   );
   object.specificMuscle = _ExerciseTemplateModelspecificMuscleValueEnumMap[
-          reader.readStringOrNull(offsets[11])] ??
+          reader.readStringOrNull(offsets[13])] ??
       SpecificMuscle.upperChest;
-  object.updatedAt = reader.readDateTime(offsets[12]);
+  object.updatedAt = reader.readDateTime(offsets[14]);
   return object;
 }
 
@@ -237,42 +252,46 @@ P _exerciseTemplateModelDeserializeProp<P>(
 ) {
   switch (propertyId) {
     case 0:
-      return (reader.readDateTime(offset)) as P;
+      return (reader.readLongList(offset) ?? []) as P;
     case 1:
+      return (reader.readDateTime(offset)) as P;
+    case 2:
       return (_ExerciseTemplateModeldefaultDifficultyValueEnumMap[
               reader.readStringOrNull(offset)] ??
           DifficultyLevel.easy) as P;
-    case 2:
-      return (reader.readDateTimeOrNull(offset)) as P;
     case 3:
+      return (reader.readDateTimeOrNull(offset)) as P;
+    case 4:
       return (_ExerciseTemplateModelequipmentValueEnumMap[
           reader.readStringOrNull(offset)]) as P;
-    case 4:
-      return (reader.readString(offset)) as P;
     case 5:
+      return (reader.readBool(offset)) as P;
+    case 6:
+      return (reader.readString(offset)) as P;
+    case 7:
       return (_ExerciseTemplateModelmediaTypeValueEnumMap[
           reader.readStringOrNull(offset)]) as P;
-    case 6:
+    case 8:
       return (reader.readStringOrNull(offset)) as P;
-    case 7:
+    case 9:
       return (_ExerciseTemplateModelmuscleGroupValueEnumMap[
               reader.readStringOrNull(offset)] ??
           MuscleGroup.chest) as P;
-    case 8:
-      return (reader.readString(offset)) as P;
-    case 9:
-      return (reader.readStringOrNull(offset)) as P;
     case 10:
+      return (reader.readString(offset)) as P;
+    case 11:
+      return (reader.readStringOrNull(offset)) as P;
+    case 12:
       return (reader.readObjectOrNull<ProgressionSettingsModel>(
         offset,
         ProgressionSettingsModelSchema.deserialize,
         allOffsets,
       )) as P;
-    case 11:
+    case 13:
       return (_ExerciseTemplateModelspecificMuscleValueEnumMap[
               reader.readStringOrNull(offset)] ??
           SpecificMuscle.upperChest) as P;
-    case 12:
+    case 14:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -548,6 +567,153 @@ extension ExerciseTemplateModelQueryWhere on QueryBuilder<ExerciseTemplateModel,
 
 extension ExerciseTemplateModelQueryFilter on QueryBuilder<
     ExerciseTemplateModel, ExerciseTemplateModel, QFilterCondition> {
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      compoundExerciseTemplateIdsElementEqualTo(int value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'compoundExerciseTemplateIds',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsElementGreaterThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'compoundExerciseTemplateIds',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsElementLessThan(
+    int value, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'compoundExerciseTemplateIds',
+        value: value,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsElementBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'compoundExerciseTemplateIds',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      compoundExerciseTemplateIdsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> compoundExerciseTemplateIdsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'compoundExerciseTemplateIds',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
       QAfterFilterCondition> createdAtEqualTo(DateTime value) {
     return QueryBuilder.apply(this, (query) {
@@ -1024,6 +1190,16 @@ extension ExerciseTemplateModelQueryFilter on QueryBuilder<
         includeLower: includeLower,
         upper: upper,
         includeUpper: includeUpper,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> isCompoundEqualTo(bool value) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'isCompound',
+        value: value,
       ));
     });
   }
@@ -2196,6 +2372,20 @@ extension ExerciseTemplateModelQuerySortBy
   }
 
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
+      sortByIsCompound() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCompound', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
+      sortByIsCompoundDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCompound', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
       sortByLowercaseName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lowercaseName', Sort.asc);
@@ -2381,6 +2571,20 @@ extension ExerciseTemplateModelQuerySortThenBy
   }
 
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
+      thenByIsCompound() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCompound', Sort.asc);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
+      thenByIsCompoundDesc() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addSortBy(r'isCompound', Sort.desc);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QAfterSortBy>
       thenByLowercaseName() {
     return QueryBuilder.apply(this, (query) {
       return query.addSortBy(r'lowercaseName', Sort.asc);
@@ -2496,6 +2700,13 @@ extension ExerciseTemplateModelQuerySortThenBy
 extension ExerciseTemplateModelQueryWhereDistinct
     on QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct> {
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
+      distinctByCompoundExerciseTemplateIds() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'compoundExerciseTemplateIds');
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
       distinctByCreatedAt() {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'createdAt');
@@ -2521,6 +2732,13 @@ extension ExerciseTemplateModelQueryWhereDistinct
       distinctByEquipment({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'equipment', caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
+      distinctByIsCompound() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'isCompound');
     });
   }
 
@@ -2591,6 +2809,13 @@ extension ExerciseTemplateModelQueryProperty on QueryBuilder<
     });
   }
 
+  QueryBuilder<ExerciseTemplateModel, List<int>, QQueryOperations>
+      compoundExerciseTemplateIdsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'compoundExerciseTemplateIds');
+    });
+  }
+
   QueryBuilder<ExerciseTemplateModel, DateTime, QQueryOperations>
       createdAtProperty() {
     return QueryBuilder.apply(this, (query) {
@@ -2616,6 +2841,13 @@ extension ExerciseTemplateModelQueryProperty on QueryBuilder<
       equipmentProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'equipment');
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, bool, QQueryOperations>
+      isCompoundProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'isCompound');
     });
   }
 

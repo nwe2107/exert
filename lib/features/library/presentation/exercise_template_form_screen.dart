@@ -6,10 +6,7 @@ import '../../../core/enums/app_enums.dart';
 import '../../../data/models/exercise_template_model.dart';
 
 class ExerciseTemplateFormScreen extends ConsumerStatefulWidget {
-  const ExerciseTemplateFormScreen({
-    super.key,
-    this.templateId,
-  });
+  const ExerciseTemplateFormScreen({super.key, this.templateId});
 
   final int? templateId;
 
@@ -32,6 +29,8 @@ class _ExerciseTemplateFormScreenState
 
   bool _didHydrate = false;
   bool _isSaving = false;
+  bool _isCompound = false;
+  final Set<int> _compoundTemplateIds = <int>{};
 
   MediaType? _mediaType;
   MuscleGroup _muscleGroup = MuscleGroup.chest;
@@ -66,10 +65,12 @@ class _ExerciseTemplateFormScreenState
   @override
   Widget build(BuildContext context) {
     final allTemplatesAsync = ref.watch(allTemplatesProvider);
+    final allTemplates =
+        allTemplatesAsync.valueOrNull ?? const <ExerciseTemplateModel>[];
 
     ExerciseTemplateModel? existing;
-    if (widget.templateId != null && allTemplatesAsync is AsyncData) {
-      for (final candidate in allTemplatesAsync.value ?? const <ExerciseTemplateModel>[]) {
+    if (widget.templateId != null) {
+      for (final candidate in allTemplates) {
         if (candidate.id == widget.templateId) {
           existing = candidate;
           break;
@@ -82,10 +83,15 @@ class _ExerciseTemplateFormScreenState
     }
 
     final title = existing == null ? 'Add Exercise' : 'Edit Exercise';
+    final compoundOptions = _compoundTemplateOptions(
+      allTemplates,
+      editingTemplateId: existing?.id,
+    );
     final specificOptions =
         specificMusclesByGroup[_muscleGroup] ?? const <SpecificMuscle>[];
 
-    if (!specificOptions.contains(_specificMuscle) && specificOptions.isNotEmpty) {
+    if (!specificOptions.contains(_specificMuscle) &&
+        specificOptions.isNotEmpty) {
       _specificMuscle = specificOptions.first;
     }
 
@@ -110,57 +116,87 @@ class _ExerciseTemplateFormScreenState
               },
             ),
             const SizedBox(height: 12),
-            DropdownButtonFormField<MuscleGroup>(
-              initialValue: _muscleGroup,
-              decoration: const InputDecoration(
-                labelText: 'Muscle group',
-                border: OutlineInputBorder(),
+            SwitchListTile.adaptive(
+              contentPadding: const EdgeInsets.symmetric(horizontal: 4),
+              title: const Text('Compound exercise'),
+              subtitle: const Text(
+                'Use this for workouts made of multiple existing exercises.',
               ),
-              items: MuscleGroup.values
-                  .map(
-                    (group) => DropdownMenuItem(
-                      value: group,
-                      child: Text(group.label),
-                    ),
-                  )
-                  .toList(),
+              value: _isCompound,
               onChanged: (value) {
-                if (value == null) {
-                  return;
-                }
                 setState(() {
-                  _muscleGroup = value;
-                  final options = specificMusclesByGroup[_muscleGroup];
-                  if (options != null && options.isNotEmpty) {
-                    _specificMuscle = options.first;
+                  _isCompound = value;
+                });
+              },
+            ),
+            const SizedBox(height: 8),
+            if (!_isCompound) ...[
+              DropdownButtonFormField<MuscleGroup>(
+                initialValue: _muscleGroup,
+                decoration: const InputDecoration(
+                  labelText: 'Muscle group',
+                  border: OutlineInputBorder(),
+                ),
+                items: MuscleGroup.values
+                    .map(
+                      (group) => DropdownMenuItem(
+                        value: group,
+                        child: Text(group.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
                   }
-                });
-              },
-            ),
-            const SizedBox(height: 12),
-            DropdownButtonFormField<SpecificMuscle>(
-              initialValue: _specificMuscle,
-              decoration: const InputDecoration(
-                labelText: 'Specific muscle',
-                border: OutlineInputBorder(),
+                  setState(() {
+                    _muscleGroup = value;
+                    final options = specificMusclesByGroup[_muscleGroup];
+                    if (options != null && options.isNotEmpty) {
+                      _specificMuscle = options.first;
+                    }
+                  });
+                },
               ),
-              items: specificOptions
-                  .map(
-                    (muscle) => DropdownMenuItem(
-                      value: muscle,
-                      child: Text(muscle.label),
-                    ),
-                  )
-                  .toList(),
-              onChanged: (value) {
-                if (value == null) {
-                  return;
-                }
-                setState(() {
-                  _specificMuscle = value;
-                });
-              },
-            ),
+              const SizedBox(height: 12),
+              DropdownButtonFormField<SpecificMuscle>(
+                initialValue: _specificMuscle,
+                decoration: const InputDecoration(
+                  labelText: 'Specific muscle',
+                  border: OutlineInputBorder(),
+                ),
+                items: specificOptions
+                    .map(
+                      (muscle) => DropdownMenuItem(
+                        value: muscle,
+                        child: Text(muscle.label),
+                      ),
+                    )
+                    .toList(),
+                onChanged: (value) {
+                  if (value == null) {
+                    return;
+                  }
+                  setState(() {
+                    _specificMuscle = value;
+                  });
+                },
+              ),
+            ] else ...[
+              _CompoundExercisePicker(
+                options: compoundOptions,
+                selectedTemplateIds: _compoundTemplateIds,
+                onToggleTemplate: (templateId, selected) {
+                  setState(() {
+                    if (selected) {
+                      _compoundTemplateIds.add(templateId);
+                    } else {
+                      _compoundTemplateIds.remove(templateId);
+                    }
+                  });
+                },
+              ),
+            ],
             const SizedBox(height: 12),
             DropdownButtonFormField<DifficultyLevel>(
               initialValue: _defaultDifficulty,
@@ -314,7 +350,9 @@ class _ExerciseTemplateFormScreenState
             ),
             const SizedBox(height: 16),
             FilledButton(
-              onPressed: _isSaving ? null : () => _save(existing),
+              onPressed: _isSaving
+                  ? null
+                  : () => _save(existing, allTemplates: allTemplates),
               child: Text(_isSaving ? 'Saving...' : 'Save Exercise'),
             ),
             if (existing != null) ...[
@@ -340,6 +378,10 @@ class _ExerciseTemplateFormScreenState
     _specificMuscle = existing.specificMuscle;
     _defaultDifficulty = existing.defaultDifficulty;
     _equipment = existing.equipment;
+    _isCompound = existing.isCompound;
+    _compoundTemplateIds
+      ..clear()
+      ..addAll(existing.compoundExerciseTemplateIds);
 
     final progression = existing.progressionSettings;
     if (progression != null) {
@@ -351,10 +393,37 @@ class _ExerciseTemplateFormScreenState
     }
   }
 
-  Future<void> _save(ExerciseTemplateModel? existing) async {
+  Future<void> _save(
+    ExerciseTemplateModel? existing, {
+    required List<ExerciseTemplateModel> allTemplates,
+  }) async {
     if (!_formKey.currentState!.validate()) {
       return;
     }
+
+    final compoundOptions = _compoundTemplateOptions(
+      allTemplates,
+      editingTemplateId: existing?.id,
+    );
+    final validCompoundIds =
+        _compoundTemplateIds
+            .where((id) => compoundOptions.any((template) => template.id == id))
+            .toList(growable: false)
+          ..sort();
+
+    if (_isCompound && validCompoundIds.length < 2) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Select at least 2 exercises for a compound workout.'),
+        ),
+      );
+      return;
+    }
+
+    final compoundComponents = compoundOptions
+        .where((template) => validCompoundIds.contains(template.id))
+        .toList(growable: false);
+    final compoundTarget = _deriveCompoundTarget(compoundComponents);
 
     setState(() {
       _isSaving = true;
@@ -368,11 +437,17 @@ class _ExerciseTemplateFormScreenState
       ..name = _nameController.text.trim()
       ..mediaType = _mediaType
       ..mediaUrl = _nullIfEmpty(_mediaUrlController.text)
-      ..muscleGroup = _muscleGroup
-      ..specificMuscle = _specificMuscle
+      ..muscleGroup = _isCompound ? compoundTarget.muscleGroup : _muscleGroup
+      ..specificMuscle = _isCompound
+          ? compoundTarget.specificMuscle
+          : _specificMuscle
       ..defaultDifficulty = _defaultDifficulty
       ..equipment = _equipment
       ..notes = _nullIfEmpty(_notesController.text)
+      ..isCompound = _isCompound
+      ..compoundExerciseTemplateIds = _isCompound
+          ? validCompoundIds
+          : const <int>[]
       ..progressionSettings = progression;
 
     await repository.save(model);
@@ -382,6 +457,50 @@ class _ExerciseTemplateFormScreenState
     }
 
     Navigator.of(context).pop();
+  }
+
+  List<ExerciseTemplateModel> _compoundTemplateOptions(
+    List<ExerciseTemplateModel> allTemplates, {
+    int? editingTemplateId,
+  }) {
+    final options = allTemplates.where((template) {
+      if (template.isCompound) {
+        return false;
+      }
+      if (editingTemplateId != null && template.id == editingTemplateId) {
+        return false;
+      }
+      return true;
+    }).toList();
+
+    options.sort(
+      (a, b) => a.name.toLowerCase().compareTo(b.name.toLowerCase()),
+    );
+    return options;
+  }
+
+  ({MuscleGroup muscleGroup, SpecificMuscle specificMuscle})
+  _deriveCompoundTarget(List<ExerciseTemplateModel> components) {
+    if (components.isEmpty) {
+      return (
+        muscleGroup: MuscleGroup.fullBody,
+        specificMuscle: SpecificMuscle.fullBody,
+      );
+    }
+
+    final groups = components.map((template) => template.muscleGroup).toSet();
+    final specifics = components
+        .map((template) => template.specificMuscle)
+        .toSet();
+
+    if (groups.length == 1 && specifics.length == 1) {
+      return (muscleGroup: groups.first, specificMuscle: specifics.first);
+    }
+
+    return (
+      muscleGroup: MuscleGroup.fullBody,
+      specificMuscle: SpecificMuscle.fullBody,
+    );
   }
 
   Future<void> _delete(ExerciseTemplateModel existing) async {
@@ -403,7 +522,9 @@ class _ExerciseTemplateFormScreenState
     final minReps = int.tryParse(_minRepsController.text.trim());
     final maxReps = int.tryParse(_maxRepsController.text.trim());
     final targetSets = int.tryParse(_targetSetsController.text.trim());
-    final progressionStep = double.tryParse(_progressionStepController.text.trim());
+    final progressionStep = double.tryParse(
+      _progressionStepController.text.trim(),
+    );
 
     final hasAnyValue =
         minReps != null ||
@@ -425,5 +546,77 @@ class _ExerciseTemplateFormScreenState
   String? _nullIfEmpty(String value) {
     final trimmed = value.trim();
     return trimmed.isEmpty ? null : trimmed;
+  }
+}
+
+class _CompoundExercisePicker extends StatelessWidget {
+  const _CompoundExercisePicker({
+    required this.options,
+    required this.selectedTemplateIds,
+    required this.onToggleTemplate,
+  });
+
+  final List<ExerciseTemplateModel> options;
+  final Set<int> selectedTemplateIds;
+  final void Function(int templateId, bool selected) onToggleTemplate;
+
+  @override
+  Widget build(BuildContext context) {
+    if (options.isEmpty) {
+      return const Card(
+        child: Padding(
+          padding: EdgeInsets.all(12),
+          child: Text(
+            'Add regular exercises first, then you can compose them into a compound workout.',
+          ),
+        ),
+      );
+    }
+
+    final selectedCount = options
+        .where((template) => selectedTemplateIds.contains(template.id))
+        .length;
+
+    return Column(
+      crossAxisAlignment: CrossAxisAlignment.start,
+      children: [
+        Text(
+          'Compound exercises',
+          style: Theme.of(context).textTheme.titleSmall,
+        ),
+        const SizedBox(height: 8),
+        ConstrainedBox(
+          constraints: const BoxConstraints(maxHeight: 260),
+          child: DecoratedBox(
+            decoration: BoxDecoration(
+              borderRadius: BorderRadius.circular(12),
+              border: Border.all(color: Theme.of(context).colorScheme.outline),
+            ),
+            child: ListView.separated(
+              shrinkWrap: true,
+              itemCount: options.length,
+              separatorBuilder: (_, index) => const Divider(height: 0),
+              itemBuilder: (context, index) {
+                final template = options[index];
+                return CheckboxListTile(
+                  value: selectedTemplateIds.contains(template.id),
+                  controlAffinity: ListTileControlAffinity.leading,
+                  contentPadding: const EdgeInsets.symmetric(horizontal: 8),
+                  title: Text(template.name),
+                  subtitle: Text(
+                    '${template.muscleGroup.label} • ${template.specificMuscle.label}',
+                  ),
+                  onChanged: (value) {
+                    onToggleTemplate(template.id, value ?? false);
+                  },
+                );
+              },
+            ),
+          ),
+        ),
+        const SizedBox(height: 8),
+        Text('$selectedCount selected'),
+      ],
+    );
   }
 }

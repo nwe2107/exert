@@ -8,6 +8,7 @@ import '../../../core/utils/date_utils.dart';
 import '../../../data/models/exercise_entry_model.dart';
 import '../../../data/models/exercise_template_model.dart';
 import '../../../data/models/workout_session_model.dart';
+import '../domain/compound_exercise_template_expander.dart';
 import 'workout_providers.dart';
 
 class WorkoutLogScreen extends ConsumerStatefulWidget {
@@ -292,28 +293,45 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       return;
     }
 
-    final template = templates.firstWhere(
+    final selectedTemplate = templates.firstWhere(
       (item) => item.id == result.exerciseTemplateId,
     );
+    final templatesById = {
+      for (final template in templates) template.id: template,
+    };
+    final targetTemplates = expandTemplateForLogging(
+      selectedTemplate,
+      templatesById: templatesById,
+    );
 
-    final entry = existing ?? ExerciseEntryModel();
-    entry
-      ..workoutSessionId = resolvedSession.id
-      ..exerciseTemplateId = result.exerciseTemplateId
-      ..schemeType = result.schemeType
-      ..supersetGroupId = _nullIfEmpty(result.supersetGroupId)
-      ..feltDifficulty = result.feltDifficulty
-      ..restSeconds = result.restSeconds
-      ..notes = _nullIfEmpty(result.notes)
-      ..sets = result.setReps.asMap().entries.map((entry) {
-        return SetItemModel()
-          ..setNumber = entry.key + 1
-          ..reps = entry.value;
-      }).toList()
-      ..muscleGroup = template.muscleGroup
-      ..specificMuscle = template.specificMuscle;
+    if (existing != null && targetTemplates.length != 1) {
+      await repository.deleteEntry(existing.id);
+    }
 
-    await repository.saveEntry(entry);
+    for (var i = 0; i < targetTemplates.length; i++) {
+      final template = targetTemplates[i];
+      final entry = existing != null && targetTemplates.length == 1 && i == 0
+          ? existing
+          : ExerciseEntryModel();
+
+      entry
+        ..workoutSessionId = resolvedSession.id
+        ..exerciseTemplateId = template.id
+        ..schemeType = result.schemeType
+        ..supersetGroupId = _nullIfEmpty(result.supersetGroupId)
+        ..feltDifficulty = result.feltDifficulty
+        ..restSeconds = result.restSeconds
+        ..notes = _nullIfEmpty(result.notes)
+        ..sets = result.setReps.asMap().entries.map((entry) {
+          return SetItemModel()
+            ..setNumber = entry.key + 1
+            ..reps = entry.value;
+        }).toList()
+        ..muscleGroup = template.muscleGroup
+        ..specificMuscle = template.specificMuscle;
+
+      await repository.saveEntry(entry);
+    }
   }
 
   Future<WorkoutSessionModel> _ensureSession(
