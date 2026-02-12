@@ -3,10 +3,12 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../application/app_providers.dart';
+import '../../../application/theme_preference.dart';
 import '../../../domain/repositories/auth_repository.dart';
 
 const settingsPersonalInfoButtonKey = ValueKey('settings-personal-info-button');
 const settingsSignOutButtonKey = ValueKey('settings-sign-out-button');
+const settingsThemeToggleKey = ValueKey('settings-theme-toggle');
 const settingsDeleteAccountButtonKey = ValueKey(
   'settings-delete-account-button',
 );
@@ -34,6 +36,9 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
     final session = ref.watch(authSessionProvider).valueOrNull;
     final profileAsync = ref.watch(accountProfileProvider);
     final displayName = profileAsync.valueOrNull?.displayName ?? '';
+    final themePreference =
+        ref.watch(themePreferenceProvider).valueOrNull ??
+        ThemePreference.timeOfDay;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Settings')),
@@ -78,8 +83,33 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
                 children: [
                   Text('App', style: Theme.of(context).textTheme.titleMedium),
                   const SizedBox(height: 8),
-                  const Text(
-                    'Theme, notifications, and reminders are coming soon.',
+                  SegmentedButton<ThemePreference>(
+                    key: settingsThemeToggleKey,
+                    segments: const [
+                      ButtonSegment<ThemePreference>(
+                        value: ThemePreference.light,
+                        label: Text('Light'),
+                        icon: Icon(Icons.light_mode_outlined),
+                      ),
+                      ButtonSegment<ThemePreference>(
+                        value: ThemePreference.dark,
+                        label: Text('Dark'),
+                        icon: Icon(Icons.dark_mode_outlined),
+                      ),
+                      ButtonSegment<ThemePreference>(
+                        value: ThemePreference.timeOfDay,
+                        label: Text('Time of day'),
+                        icon: Icon(Icons.schedule_outlined),
+                      ),
+                    ],
+                    selected: <ThemePreference>{themePreference},
+                    showSelectedIcon: false,
+                    onSelectionChanged: _onThemePreferenceChanged,
+                  ),
+                  const SizedBox(height: 8),
+                  Text(
+                    'Time of day switches automatically (Light: 06:00-17:59, Dark: 18:00-05:59).',
+                    style: Theme.of(context).textTheme.bodySmall,
                   ),
                 ],
               ),
@@ -274,5 +304,13 @@ class _AccountSettingsScreenState extends ConsumerState<AccountSettingsScreen> {
         });
       }
     }
+  }
+
+  void _onThemePreferenceChanged(Set<ThemePreference> selection) {
+    if (selection.isEmpty) {
+      return;
+    }
+    final preference = selection.first;
+    ref.read(themePreferenceProvider.notifier).setPreference(preference);
   }
 }

@@ -13,14 +13,26 @@ class ExertApp extends ConsumerWidget {
     ref.watch(ensureExerciseSeededProvider);
 
     final router = ref.watch(appRouterProvider);
+    final themeMode = ref.watch(appThemeModeProvider);
 
     return MaterialApp.router(
       title: 'Exert Discipline',
       debugShowCheckedModeBanner: false,
       theme: ThemeData(
         useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: const Color(0xFF17624A)),
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF17624A),
+          brightness: Brightness.light,
+        ),
       ),
+      darkTheme: ThemeData(
+        useMaterial3: true,
+        colorScheme: ColorScheme.fromSeed(
+          seedColor: const Color(0xFF17624A),
+          brightness: Brightness.dark,
+        ),
+      ),
+      themeMode: themeMode,
       routerConfig: router,
     );
   }

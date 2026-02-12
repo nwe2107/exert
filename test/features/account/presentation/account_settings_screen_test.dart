@@ -2,6 +2,8 @@ import 'dart:async';
 
 import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
+import 'package:exert/application/theme_preference.dart';
+import 'package:exert/data/local/theme_preference_store.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
 import 'package:exert/data/models/user_profile_model.dart';
@@ -154,6 +156,40 @@ void main() {
     expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
     expect(find.byKey(loginSubmitButtonKey), findsNothing);
   });
+
+  testWidgets('theme toggle switches between dark/light/time of day', (
+    tester,
+  ) async {
+    final authRepository = _TestAuthRepository();
+    final workoutRepository = _FakeWorkoutRepository();
+    final userProfileRepository = _FakeUserProfileRepository();
+    final themeStore = _InMemoryThemePreferenceStore(ThemePreference.timeOfDay);
+    addTearDown(authRepository.dispose);
+    addTearDown(userProfileRepository.dispose);
+
+    await _pumpAuthenticatedApp(
+      tester,
+      authRepository: authRepository,
+      workoutRepository: workoutRepository,
+      userProfileRepository: userProfileRepository,
+      themePreferenceStore: themeStore,
+    );
+    await _openSettingsFromToday(tester);
+
+    expect(find.byKey(settingsThemeToggleKey), findsOneWidget);
+
+    await tester.tap(find.text('Dark'));
+    await tester.pumpAndSettle();
+    expect(_currentThemeMode(tester), ThemeMode.dark);
+
+    await tester.tap(find.text('Light'));
+    await tester.pumpAndSettle();
+    expect(_currentThemeMode(tester), ThemeMode.light);
+
+    await tester.tap(find.text('Time of day'));
+    await tester.pumpAndSettle();
+    expect(_currentThemeMode(tester), _expectedTimeOfDayThemeMode());
+  });
 }
 
 Future<void> _pumpAuthenticatedApp(
@@ -161,6 +197,8 @@ Future<void> _pumpAuthenticatedApp(
   required _TestAuthRepository authRepository,
   required _FakeWorkoutRepository workoutRepository,
   required _FakeUserProfileRepository userProfileRepository,
+  ThemePreferenceStore themePreferenceStore =
+      const _InMemoryThemePreferenceStore(),
 }) async {
   await tester.pumpWidget(
     ProviderScope(
@@ -168,6 +206,7 @@ Future<void> _pumpAuthenticatedApp(
         authRepositoryProvider.overrideWithValue(authRepository),
         workoutRepositoryProvider.overrideWithValue(workoutRepository),
         userProfileRepositoryProvider.overrideWithValue(userProfileRepository),
+        themePreferenceStoreProvider.overrideWithValue(themePreferenceStore),
         todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
         allSessionsProvider.overrideWith(
           (ref) => Stream.value(<WorkoutSessionModel>[]),
@@ -194,8 +233,26 @@ Future<void> _openSettingsFromToday(WidgetTester tester) async {
 
   await tester.tap(find.byKey(accountSettingsButtonKey));
   await tester.pumpAndSettle();
+  await tester.scrollUntilVisible(
+    find.byKey(settingsDeleteAccountButtonKey),
+    200,
+    scrollable: find.byType(Scrollable).last,
+  );
+  await tester.pumpAndSettle();
 
   expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
+}
+
+ThemeMode _currentThemeMode(WidgetTester tester) {
+  final app = tester.widget<MaterialApp>(find.byType(MaterialApp));
+  return app.themeMode ?? ThemeMode.system;
+}
+
+ThemeMode _expectedTimeOfDayThemeMode() {
+  return resolveThemeModeForPreference(
+    ThemePreference.timeOfDay,
+    DateTime.now(),
+  );
 }
 
 class _TestAuthRepository implements AuthRepository {
@@ -380,4 +437,20 @@ class _FakeUserProfileRepository implements UserProfileRepository {
   void dispose() {
     _profileController.close();
   }
+}
+
+class _InMemoryThemePreferenceStore implements ThemePreferenceStore {
+  const _InMemoryThemePreferenceStore([
+    this._preference = ThemePreference.timeOfDay,
+  ]);
+
+  final ThemePreference _preference;
+
+  @override
+  Future<ThemePreference> loadPreference() async {
+    return _preference;
+  }
+
+  @override
+  Future<void> savePreference(ThemePreference preference) async {}
 }

@@ -1,5 +1,7 @@
 import 'package:exert/app/app.dart';
 import 'package:exert/application/app_providers.dart';
+import 'package:exert/application/theme_preference.dart';
+import 'package:exert/data/local/theme_preference_store.dart';
 import 'package:exert/data/models/exercise_entry_model.dart';
 import 'package:exert/data/models/exercise_template_model.dart';
 import 'package:exert/data/models/user_profile_model.dart';
@@ -14,6 +16,7 @@ import 'package:exert/features/account/presentation/account_settings_screen.dart
 import 'package:exert/features/account/presentation/account_profile_form_screen.dart';
 import 'package:exert/features/today/presentation/today_screen.dart';
 import 'package:exert/features/workout/presentation/workout_providers.dart';
+import 'package:flutter/widgets.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -32,6 +35,9 @@ void main() {
             ),
             userProfileRepositoryProvider.overrideWithValue(
               _FakeUserProfileRepository(),
+            ),
+            themePreferenceStoreProvider.overrideWithValue(
+              const _InMemoryThemePreferenceStore(),
             ),
             todayProvider.overrideWithValue(DateTime(2026, 2, 9)),
             allSessionsProvider.overrideWith(
@@ -71,6 +77,12 @@ void main() {
       expect(settingsButton, findsOneWidget);
 
       await tester.tap(settingsButton);
+      await tester.pumpAndSettle();
+      await tester.scrollUntilVisible(
+        find.byKey(settingsDeleteAccountButtonKey),
+        200,
+        scrollable: find.byType(Scrollable).last,
+      );
       await tester.pumpAndSettle();
       expect(find.byKey(settingsDeleteAccountButtonKey), findsOneWidget);
 
@@ -183,4 +195,20 @@ class _FakeUserProfileRepository implements UserProfileRepository {
 
   @override
   Future<void> clearProfile() async {}
+}
+
+class _InMemoryThemePreferenceStore implements ThemePreferenceStore {
+  const _InMemoryThemePreferenceStore([
+    this._preference = ThemePreference.timeOfDay,
+  ]);
+
+  final ThemePreference _preference;
+
+  @override
+  Future<ThemePreference> loadPreference() async {
+    return _preference;
+  }
+
+  @override
+  Future<void> savePreference(ThemePreference preference) async {}
 }

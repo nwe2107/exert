@@ -1,10 +1,13 @@
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:isar/isar.dart';
 
+import 'theme_preference.dart';
 import '../core/utils/date_utils.dart';
+import '../data/local/theme_preference_store.dart';
 import '../data/models/account_profile_model.dart';
 import '../data/models/exercise_entry_model.dart';
 import '../data/models/exercise_template_model.dart';
@@ -99,6 +102,50 @@ final todayProvider = Provider<DateTime>((ref) {
   return normalizeLocalDate(DateTime.now());
 });
 
+final themePreferenceStoreProvider = Provider<ThemePreferenceStore>((ref) {
+  return FileThemePreferenceStore();
+});
+
+final themePreferenceProvider =
+    AsyncNotifierProvider<ThemePreferenceNotifier, ThemePreference>(
+      ThemePreferenceNotifier.new,
+    );
+
+class ThemePreferenceNotifier extends AsyncNotifier<ThemePreference> {
+  @override
+  Future<ThemePreference> build() async {
+    return ref.read(themePreferenceStoreProvider).loadPreference();
+  }
+
+  Future<void> setPreference(ThemePreference preference) async {
+    final previousPreference = state.valueOrNull ?? ThemePreference.timeOfDay;
+    state = AsyncData(preference);
+
+    try {
+      await ref.read(themePreferenceStoreProvider).savePreference(preference);
+    } catch (_) {
+      state = AsyncData(previousPreference);
+      rethrow;
+    }
+  }
+}
+
+final themeClockProvider = StreamProvider<DateTime>((ref) async* {
+  yield DateTime.now();
+  yield* Stream<DateTime>.periodic(
+    const Duration(minutes: 1),
+    (_) => DateTime.now(),
+  );
+});
+
+final appThemeModeProvider = Provider<ThemeMode>((ref) {
+  final preference =
+      ref.watch(themePreferenceProvider).valueOrNull ??
+      ThemePreference.timeOfDay;
+  final now = ref.watch(themeClockProvider).valueOrNull ?? DateTime.now();
+  return resolveThemeModeForPreference(preference, now);
+});
+
 final allTemplatesProvider = StreamProvider<List<ExerciseTemplateModel>>((ref) {
   final firebaseApp = ref.watch(firebaseAppProvider);
   final sessionAsync = ref.watch(authSessionProvider);
@@ -116,7 +163,7 @@ final allTemplatesProvider = StreamProvider<List<ExerciseTemplateModel>>((ref) {
       return repository.watchAll();
     },
     loading: () => const Stream<List<ExerciseTemplateModel>>.empty(),
-    error: (_, __) => repository.watchAll(),
+    error: (_, _) => repository.watchAll(),
   );
 });
 
@@ -198,7 +245,7 @@ final accountProfileProvider = StreamProvider<AccountProfileModel?>((ref) {
       return repository.watchProfile(session.userId);
     },
     loading: () => Stream<AccountProfileModel?>.value(null),
-    error: (_, __) => Stream<AccountProfileModel?>.value(null),
+    error: (_, _) => Stream<AccountProfileModel?>.value(null),
   );
 });
 
