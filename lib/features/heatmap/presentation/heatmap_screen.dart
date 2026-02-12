@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 import 'package:intl/intl.dart';
 
 import '../../../core/enums/app_enums.dart';
@@ -129,10 +130,11 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
 
   void _showDetails(BuildContext context, MuscleHeatmapItem item) {
     final dateFormat = DateFormat.yMMMd();
+    final rootContext = context;
 
     showModalBottomSheet<void>(
       context: context,
-      builder: (context) {
+      builder: (sheetContext) {
         return Padding(
           padding: const EdgeInsets.all(16),
           child: Column(
@@ -162,6 +164,19 @@ class _HeatmapScreenState extends ConsumerState<HeatmapScreen> {
                 ),
               ],
               const SizedBox(height: 16),
+              SizedBox(
+                width: double.infinity,
+                child: FilledButton.icon(
+                  onPressed: () {
+                    Navigator.of(sheetContext).pop();
+                    rootContext.go(
+                      '/library?muscle=${item.specificMuscle.name}',
+                    );
+                  },
+                  icon: const Icon(Icons.fitness_center),
+                  label: const Text('See exercises'),
+                ),
+              ),
             ],
           ),
         );

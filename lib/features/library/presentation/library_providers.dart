@@ -8,19 +8,41 @@ final librarySearchQueryProvider = StateProvider<String>((ref) => '');
 
 final libraryMuscleFilterProvider = StateProvider<MuscleGroup?>((ref) => null);
 
-final filteredLibraryTemplatesProvider = Provider<AsyncValue<List<ExerciseTemplateModel>>>(
-  (ref) {
-    final templatesAsync = ref.watch(allTemplatesProvider);
-    final query = ref.watch(librarySearchQueryProvider).trim().toLowerCase();
-    final group = ref.watch(libraryMuscleFilterProvider);
-
-    return templatesAsync.whenData((templates) {
-      return templates.where((template) {
-        final matchesQuery =
-            query.isEmpty || template.name.toLowerCase().contains(query);
-        final matchesGroup = group == null || template.muscleGroup == group;
-        return matchesQuery && matchesGroup;
-      }).toList();
-    });
-  },
+final librarySpecificMuscleFilterProvider = StateProvider<SpecificMuscle?>(
+  (ref) => null,
 );
+
+List<ExerciseTemplateModel> applyLibraryFilters({
+  required List<ExerciseTemplateModel> templates,
+  required String query,
+  required MuscleGroup? group,
+  required SpecificMuscle? specificMuscle,
+}) {
+  final normalizedQuery = query.trim().toLowerCase();
+  return templates.where((template) {
+    final matchesQuery =
+        normalizedQuery.isEmpty ||
+        template.name.toLowerCase().contains(normalizedQuery);
+    final matchesGroup = group == null || template.muscleGroup == group;
+    final matchesSpecific =
+        specificMuscle == null || template.specificMuscle == specificMuscle;
+    return matchesQuery && matchesGroup && matchesSpecific;
+  }).toList();
+}
+
+final filteredLibraryTemplatesProvider =
+    Provider<AsyncValue<List<ExerciseTemplateModel>>>((ref) {
+      final templatesAsync = ref.watch(allTemplatesProvider);
+      final query = ref.watch(librarySearchQueryProvider);
+      final group = ref.watch(libraryMuscleFilterProvider);
+      final specificMuscle = ref.watch(librarySpecificMuscleFilterProvider);
+
+      return templatesAsync.whenData((templates) {
+        return applyLibraryFilters(
+          templates: templates,
+          query: query,
+          group: group,
+          specificMuscle: specificMuscle,
+        );
+      });
+    });

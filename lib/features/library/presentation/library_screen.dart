@@ -14,6 +14,7 @@ class LibraryScreen extends ConsumerStatefulWidget {
 
 class _LibraryScreenState extends ConsumerState<LibraryScreen> {
   late final TextEditingController _searchController;
+  String? _lastAppliedRouteMuscle;
 
   @override
   void initState() {
@@ -29,8 +30,20 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
 
   @override
   Widget build(BuildContext context) {
+    _syncFiltersFromRoute();
+
     final templatesAsync = ref.watch(filteredLibraryTemplatesProvider);
     final selectedGroup = ref.watch(libraryMuscleFilterProvider);
+    final selectedSpecificMuscle = ref.watch(
+      librarySpecificMuscleFilterProvider,
+    );
+    final searchQuery = ref.watch(librarySearchQueryProvider).trim();
+    final specificOptions = _specificOptionsForGroup(selectedGroup);
+    final visibleSpecificMuscle =
+        selectedSpecificMuscle != null &&
+            specificOptions.contains(selectedSpecificMuscle)
+        ? selectedSpecificMuscle
+        : null;
 
     return Scaffold(
       appBar: AppBar(title: const Text('Exercise Library')),
@@ -58,6 +71,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
           Padding(
             padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
             child: DropdownButtonFormField<MuscleGroup?>(
+              key: ValueKey('group_${selectedGroup?.name ?? 'all'}'),
               initialValue: selectedGroup,
               decoration: const InputDecoration(
                 labelText: 'Filter by muscle group',
@@ -77,6 +91,53 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
               ],
               onChanged: (value) {
                 ref.read(libraryMuscleFilterProvider.notifier).state = value;
+                final selectedSpecific = ref.read(
+                  librarySpecificMuscleFilterProvider,
+                );
+                final isStillValid =
+                    value != null &&
+                    selectedSpecific != null &&
+                    (specificMusclesByGroup[value]?.contains(
+                          selectedSpecific,
+                        ) ??
+                        false);
+                if (!isStillValid) {
+                  ref.read(librarySpecificMuscleFilterProvider.notifier).state =
+                      null;
+                }
+              },
+            ),
+          ),
+          Padding(
+            padding: const EdgeInsets.fromLTRB(16, 0, 16, 8),
+            child: DropdownButtonFormField<SpecificMuscle?>(
+              key: ValueKey(
+                'specific_${selectedGroup?.name ?? 'all'}_${visibleSpecificMuscle?.name ?? 'all'}',
+              ),
+              initialValue: visibleSpecificMuscle,
+              decoration: const InputDecoration(
+                labelText: 'Filter by specific muscle',
+                border: OutlineInputBorder(),
+              ),
+              items: [
+                const DropdownMenuItem<SpecificMuscle?>(
+                  value: null,
+                  child: Text('All muscles'),
+                ),
+                ...specificOptions.map(
+                  (muscle) => DropdownMenuItem<SpecificMuscle?>(
+                    value: muscle,
+                    child: Text(muscle.label),
+                  ),
+                ),
+              ],
+              onChanged: (value) {
+                ref.read(librarySpecificMuscleFilterProvider.notifier).state =
+                    value;
+                if (value != null) {
+                  ref.read(libraryMuscleFilterProvider.notifier).state =
+                      _groupForSpecificMuscle(value);
+                }
               },
             ),
           ),
@@ -84,8 +145,16 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
             child: templatesAsync.when(
               data: (templates) {
                 if (templates.isEmpty) {
-                  return const Center(
-                    child: Text('No exercises found. Add your first template.'),
+                  final hasActiveFilters =
+                      searchQuery.isNotEmpty ||
+                      selectedGroup != null ||
+                      selectedSpecificMuscle != null;
+                  return Center(
+                    child: Text(
+                      hasActiveFilters
+                          ? 'No exercises match the selected filters.'
+                          : 'No exercises found. Add your first template.',
+                    ),
                   );
                 }
 
@@ -124,5 +193,52 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
         ],
       ),
     );
+  }
+
+  void _syncFiltersFromRoute() {
+    final routeMuscle = GoRouterState.of(context).uri.queryParameters['muscle'];
+    if (_lastAppliedRouteMuscle == routeMuscle) {
+      return;
+    }
+    _lastAppliedRouteMuscle = routeMuscle;
+
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) {
+        return;
+      }
+      final parsedMuscle = _parseSpecificMuscle(routeMuscle);
+      ref.read(librarySpecificMuscleFilterProvider.notifier).state =
+          parsedMuscle;
+      ref.read(libraryMuscleFilterProvider.notifier).state =
+          parsedMuscle == null ? null : _groupForSpecificMuscle(parsedMuscle);
+    });
+  }
+
+  static List<SpecificMuscle> _specificOptionsForGroup(MuscleGroup? group) {
+    if (group == null) {
+      return SpecificMuscle.values;
+    }
+    return specificMusclesByGroup[group] ?? const <SpecificMuscle>[];
+  }
+
+  static SpecificMuscle? _parseSpecificMuscle(String? raw) {
+    if (raw == null || raw.isEmpty) {
+      return null;
+    }
+    for (final muscle in SpecificMuscle.values) {
+      if (muscle.name == raw) {
+        return muscle;
+      }
+    }
+    return null;
+  }
+
+  static MuscleGroup _groupForSpecificMuscle(SpecificMuscle muscle) {
+    for (final entry in specificMusclesByGroup.entries) {
+      if (entry.value.contains(muscle)) {
+        return entry.key;
+      }
+    }
+    return MuscleGroup.fullBody;
   }
 }
