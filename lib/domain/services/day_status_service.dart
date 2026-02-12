@@ -9,9 +9,13 @@ class DayStatusService {
     required DateTime date,
     required WorkoutSessionModel? session,
     DateTime? today,
+    DateTime? trackingStartDate,
   }) {
     final currentDay = normalizeLocalDate(today ?? DateTime.now());
     final targetDay = normalizeLocalDate(date);
+    final startDay = trackingStartDate == null
+        ? null
+        : normalizeLocalDate(trackingStartDate);
 
     if (session != null) {
       switch (session.status) {
@@ -24,6 +28,10 @@ class DayStatusService {
         case SessionStatus.rest:
           return CalendarDayStatus.rest;
       }
+    }
+
+    if (startDay != null && targetDay.isBefore(startDay)) {
+      return CalendarDayStatus.empty;
     }
 
     if (targetDay.isBefore(currentDay)) {

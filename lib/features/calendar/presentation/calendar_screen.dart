@@ -21,6 +21,7 @@ class CalendarScreen extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final sessionsAsync = ref.watch(allSessionsProvider);
     final templatesAsync = ref.watch(allTemplatesProvider);
+    final accountProfileAsync = ref.watch(accountProfileProvider);
     final selectedDate = ref.watch(selectedCalendarDateProvider);
     final calendarMode = ref.watch(calendarViewModeProvider);
     final dayStatusService = ref.watch(dayStatusServiceProvider);
@@ -33,6 +34,10 @@ class CalendarScreen extends ConsumerWidget {
       body: sessionsAsync.when(
         data: (sessions) {
           final sessionsByDate = _mapSessionsByDate(sessions);
+          final trackingStartDate = _resolveTrackingStartDate(
+            accountCreatedAt: accountProfileAsync.valueOrNull?.createdAt,
+            sessions: sessions,
+          );
 
           return ListView(
             padding: const EdgeInsets.all(16),
@@ -59,7 +64,9 @@ class CalendarScreen extends ConsumerWidget {
                   const Spacer(),
                   FilledButton.tonal(
                     onPressed: () {
-                      context.push('/workout-log/${encodeRouteDate(selectedDate)}');
+                      context.push(
+                        '/workout-log/${encodeRouteDate(selectedDate)}',
+                      );
                     },
                     child: const Text('View/Edit Day Log'),
                   ),
@@ -83,7 +90,9 @@ class CalendarScreen extends ConsumerWidget {
                       final normalized = normalizeLocalDate(selectedDay);
                       ref.read(selectedCalendarDateProvider.notifier).state =
                           normalized;
-                      context.push('/workout-log/${encodeRouteDate(normalized)}');
+                      context.push(
+                        '/workout-log/${encodeRouteDate(normalized)}',
+                      );
                     },
                     calendarBuilders: CalendarBuilders(
                       defaultBuilder: (context, day, focusedDay) {
@@ -91,6 +100,7 @@ class CalendarScreen extends ConsumerWidget {
                           date: day,
                           session: sessionsByDate[normalizeLocalDate(day)],
                           today: today,
+                          trackingStartDate: trackingStartDate,
                         );
                         return _CalendarDayCell(day: day, status: status);
                       },
@@ -99,6 +109,7 @@ class CalendarScreen extends ConsumerWidget {
                           date: day,
                           session: sessionsByDate[normalizeLocalDate(day)],
                           today: today,
+                          trackingStartDate: trackingStartDate,
                         );
                         return _CalendarDayCell(
                           day: day,
@@ -111,6 +122,7 @@ class CalendarScreen extends ConsumerWidget {
                           date: day,
                           session: sessionsByDate[normalizeLocalDate(day)],
                           today: today,
+                          trackingStartDate: trackingStartDate,
                         );
                         return _CalendarDayCell(
                           day: day,
@@ -137,9 +149,8 @@ class CalendarScreen extends ConsumerWidget {
           );
         },
         loading: () => const Center(child: CircularProgressIndicator()),
-        error: (error, stackTrace) => Center(
-          child: Text('Failed to load calendar: $error'),
-        ),
+        error: (error, stackTrace) =>
+            Center(child: Text('Failed to load calendar: $error')),
       ),
     );
   }
@@ -150,6 +161,41 @@ class CalendarScreen extends ConsumerWidget {
     return {
       for (final session in sessions) normalizeLocalDate(session.date): session,
     };
+  }
+
+  DateTime? _resolveTrackingStartDate({
+    required DateTime? accountCreatedAt,
+    required List<WorkoutSessionModel> sessions,
+  }) {
+    final normalizedAccountStart = _normalizeAccountCreatedAt(accountCreatedAt);
+    if (normalizedAccountStart != null) {
+      return normalizedAccountStart;
+    }
+    if (sessions.isEmpty) {
+      return null;
+    }
+
+    var earliest = normalizeLocalDate(sessions.first.date);
+    for (final session in sessions.skip(1)) {
+      final sessionDay = normalizeLocalDate(session.date);
+      if (sessionDay.isBefore(earliest)) {
+        earliest = sessionDay;
+      }
+    }
+    return earliest;
+  }
+
+  DateTime? _normalizeAccountCreatedAt(DateTime? createdAt) {
+    if (createdAt == null) {
+      return null;
+    }
+    final normalized = normalizeLocalDate(createdAt);
+
+    // Profiles without createdAt may deserialize as Unix epoch.
+    if (normalized.year <= 1971) {
+      return null;
+    }
+    return normalized;
   }
 }
 
@@ -223,7 +269,8 @@ class _SelectedDaySummary extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: entries.map((entry) {
-                    final name = namesById[entry.exerciseTemplateId] ?? 'Exercise';
+                    final name =
+                        namesById[entry.exerciseTemplateId] ?? 'Exercise';
                     return Padding(
                       padding: const EdgeInsets.only(bottom: 4),
                       child: Text('• $name'),
@@ -264,8 +311,8 @@ class _CalendarDayCell extends StatelessWidget {
         color: selected
             ? Theme.of(context).colorScheme.primaryContainer
             : highlighted
-                ? Theme.of(context).colorScheme.surfaceContainerHighest
-                : null,
+            ? Theme.of(context).colorScheme.surfaceContainerHighest
+            : null,
         borderRadius: BorderRadius.circular(8),
       ),
       child: Column(
@@ -276,10 +323,7 @@ class _CalendarDayCell extends StatelessWidget {
           Container(
             width: 8,
             height: 8,
-            decoration: BoxDecoration(
-              color: color,
-              shape: BoxShape.circle,
-            ),
+            decoration: BoxDecoration(color: color, shape: BoxShape.circle),
           ),
         ],
       ),
