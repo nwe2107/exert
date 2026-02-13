@@ -109,6 +109,32 @@ void main() {
       expect(analysis.latestDelta, isNull);
     });
 
+    test('includes entries where selected muscle is a secondary target', () {
+      final service = ProgressService();
+      final sessions = [_session(id: 1, date: DateTime(2026, 2, 8))];
+      final entries = [
+        _entry(
+          id: 1,
+          sessionId: 1,
+          muscle: SpecificMuscle.quads,
+          allMuscles: const [SpecificMuscle.quads, SpecificMuscle.abs],
+          reps: [10, 12],
+        ),
+      ];
+
+      final analysis = service.buildMuscleAnalysis(
+        sessions: sessions,
+        entries: entries,
+        muscle: SpecificMuscle.abs,
+        rangeDays: 30,
+        today: DateTime(2026, 2, 9),
+      );
+
+      expect(analysis.workouts.length, 1);
+      expect(analysis.workouts.first.totalReps, 22);
+      expect(analysis.latestDelta, isNull);
+    });
+
     test('applies optional exercise filter for the selected muscle', () {
       final service = ProgressService();
       final sessions = [
@@ -210,9 +236,15 @@ ExerciseEntryModel _entry({
   required SpecificMuscle muscle,
   required List<int> reps,
   int? templateId,
+  List<SpecificMuscle>? allMuscles,
 }) {
   final now = DateTime(2026, 2, 9);
+  final resolvedMuscles = allMuscles ?? <SpecificMuscle>[muscle];
   final group = _groupForMuscle(muscle);
+  final resolvedGroups = resolvedMuscles
+      .map(_groupForMuscle)
+      .toSet()
+      .toList(growable: false);
   return ExerciseEntryModel()
     ..id = id
     ..workoutSessionId = sessionId
@@ -230,6 +262,8 @@ ExerciseEntryModel _entry({
         .toList()
     ..muscleGroup = group
     ..specificMuscle = muscle
+    ..muscleGroups = resolvedGroups
+    ..specificMuscles = resolvedMuscles
     ..createdAt = now
     ..updatedAt = now;
 }

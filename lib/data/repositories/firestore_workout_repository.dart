@@ -259,6 +259,36 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
     final data = doc.data();
     if (data == null) return null;
     try {
+      final parsedMuscleGroups = _parseEnumList<MuscleGroup>(
+        data['muscleGroups'],
+        MuscleGroup.values,
+      );
+      final parsedSpecificMuscles = _parseEnumList<SpecificMuscle>(
+        data['specificMuscles'],
+        SpecificMuscle.values,
+      );
+      final primarySpecific =
+          _parseEnum<SpecificMuscle>(
+            data['specificMuscle'],
+            SpecificMuscle.values,
+          ) ??
+          (parsedSpecificMuscles.isNotEmpty
+              ? parsedSpecificMuscles.first
+              : SpecificMuscle.fullBody);
+      final resolvedSpecificMuscles = parsedSpecificMuscles.isNotEmpty
+          ? parsedSpecificMuscles
+          : <SpecificMuscle>[primarySpecific];
+      final primaryGroup =
+          _parseEnum<MuscleGroup>(data['muscleGroup'], MuscleGroup.values) ??
+          (parsedMuscleGroups.isNotEmpty
+              ? parsedMuscleGroups.first
+              : _groupForSpecificMuscle(primarySpecific));
+      final resolvedMuscleGroups = parsedMuscleGroups.isNotEmpty
+          ? parsedMuscleGroups
+          : resolvedSpecificMuscles
+                .map(_groupForSpecificMuscle)
+                .toSet()
+                .toList(growable: false);
       final entry = ExerciseEntryModel()
         ..id = (data['id'] as num?)?.toInt() ?? int.parse(doc.id)
         ..workoutSessionId = (data['workoutSessionId'] as num).toInt()
@@ -276,15 +306,10 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
         ..restSeconds = (data['restSeconds'] as num?)?.toInt()
         ..notes = data['notes'] as String?
         ..sets = _parseSets(data['sets'])
-        ..muscleGroup =
-            _parseEnum<MuscleGroup>(data['muscleGroup'], MuscleGroup.values) ??
-            MuscleGroup.fullBody
-        ..specificMuscle =
-            _parseEnum<SpecificMuscle>(
-              data['specificMuscle'],
-              SpecificMuscle.values,
-            ) ??
-            SpecificMuscle.fullBody
+        ..muscleGroup = primaryGroup
+        ..specificMuscle = primarySpecific
+        ..muscleGroups = resolvedMuscleGroups
+        ..specificMuscles = resolvedSpecificMuscles
         ..createdAt = DateTime.parse(
           data['createdAt'] as String? ?? DateTime.now().toIso8601String(),
         )
@@ -301,6 +326,8 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
   }
 
   Map<String, Object?> _entryToMap(ExerciseEntryModel entry) {
+    final resolvedMuscleGroups = entry.resolveMuscleGroups();
+    final resolvedSpecificMuscles = entry.resolveSpecificMuscles();
     return {
       'workoutSessionId': entry.workoutSessionId,
       'exerciseTemplateId': entry.exerciseTemplateId,
@@ -322,6 +349,12 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
           .toList(),
       'muscleGroup': entry.muscleGroup.name,
       'specificMuscle': entry.specificMuscle.name,
+      'muscleGroups': resolvedMuscleGroups
+          .map((group) => group.name)
+          .toList(growable: false),
+      'specificMuscles': resolvedSpecificMuscles
+          .map((muscle) => muscle.name)
+          .toList(growable: false),
       'deletedAt': entry.deletedAt?.toIso8601String(),
     };
   }
@@ -353,6 +386,31 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
       }
     }
     return null;
+  }
+
+  List<T> _parseEnumList<T>(Object? raw, List<T> values) {
+    if (raw is! Iterable) {
+      return const [];
+    }
+
+    final seen = <T>{};
+    final parsed = <T>[];
+    for (final item in raw) {
+      final value = _parseEnum<T>(item, values);
+      if (value != null && seen.add(value)) {
+        parsed.add(value);
+      }
+    }
+    return parsed;
+  }
+
+  MuscleGroup _groupForSpecificMuscle(SpecificMuscle muscle) {
+    for (final entry in specificMusclesByGroup.entries) {
+      if (entry.value.contains(muscle)) {
+        return entry.key;
+      }
+    }
+    return MuscleGroup.fullBody;
   }
 
   int _sessionIdFromDate(DateTime date) {

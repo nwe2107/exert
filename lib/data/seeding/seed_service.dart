@@ -421,6 +421,8 @@ class SeedService {
       ..name = name
       ..muscleGroup = muscleGroup
       ..specificMuscle = specificMuscle
+      ..muscleGroups = <MuscleGroup>[muscleGroup]
+      ..specificMuscles = <SpecificMuscle>[specificMuscle]
       ..defaultDifficulty = difficulty
       ..equipment = equipment
       ..notes = notes

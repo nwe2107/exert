@@ -31,10 +31,14 @@ class _ExerciseTemplateFormScreenState
   bool _isSaving = false;
   bool _isCompound = false;
   final Set<int> _compoundTemplateIds = <int>{};
+  final List<_MuscleTargetSelection> _muscleTargets = <_MuscleTargetSelection>[
+    _MuscleTargetSelection(
+      muscleGroup: MuscleGroup.chest,
+      specificMuscle: SpecificMuscle.midChest,
+    ),
+  ];
 
   MediaType? _mediaType;
-  MuscleGroup _muscleGroup = MuscleGroup.chest;
-  SpecificMuscle _specificMuscle = SpecificMuscle.midChest;
   DifficultyLevel _defaultDifficulty = DifficultyLevel.moderate;
   EquipmentType? _equipment;
 
@@ -87,13 +91,6 @@ class _ExerciseTemplateFormScreenState
       allTemplates,
       editingTemplateId: existing?.id,
     );
-    final specificOptions =
-        specificMusclesByGroup[_muscleGroup] ?? const <SpecificMuscle>[];
-
-    if (!specificOptions.contains(_specificMuscle) &&
-        specificOptions.isNotEmpty) {
-      _specificMuscle = specificOptions.first;
-    }
 
     return Scaffold(
       appBar: AppBar(title: Text(title)),
@@ -131,56 +128,19 @@ class _ExerciseTemplateFormScreenState
             ),
             const SizedBox(height: 8),
             if (!_isCompound) ...[
-              DropdownButtonFormField<MuscleGroup>(
-                initialValue: _muscleGroup,
-                decoration: const InputDecoration(
-                  labelText: 'Muscle group',
-                  border: OutlineInputBorder(),
-                ),
-                items: MuscleGroup.values
-                    .map(
-                      (group) => DropdownMenuItem(
-                        value: group,
-                        child: Text(group.label),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() {
-                    _muscleGroup = value;
-                    final options = specificMusclesByGroup[_muscleGroup];
-                    if (options != null && options.isNotEmpty) {
-                      _specificMuscle = options.first;
-                    }
-                  });
-                },
+              Text(
+                'Muscle targets',
+                style: Theme.of(context).textTheme.titleSmall,
               ),
-              const SizedBox(height: 12),
-              DropdownButtonFormField<SpecificMuscle>(
-                initialValue: _specificMuscle,
-                decoration: const InputDecoration(
-                  labelText: 'Specific muscle',
-                  border: OutlineInputBorder(),
+              const SizedBox(height: 8),
+              ..._buildMuscleTargetEditors(),
+              Align(
+                alignment: Alignment.centerLeft,
+                child: TextButton.icon(
+                  onPressed: _addMuscleTarget,
+                  icon: const Icon(Icons.add),
+                  label: const Text('Add muscle target'),
                 ),
-                items: specificOptions
-                    .map(
-                      (muscle) => DropdownMenuItem(
-                        value: muscle,
-                        child: Text(muscle.label),
-                      ),
-                    )
-                    .toList(),
-                onChanged: (value) {
-                  if (value == null) {
-                    return;
-                  }
-                  setState(() {
-                    _specificMuscle = value;
-                  });
-                },
               ),
             ] else ...[
               _CompoundExercisePicker(
@@ -368,14 +328,159 @@ class _ExerciseTemplateFormScreenState
     );
   }
 
+  List<Widget> _buildMuscleTargetEditors() {
+    final widgets = <Widget>[];
+
+    for (var i = 0; i < _muscleTargets.length; i++) {
+      final target = _muscleTargets[i];
+      final specificOptions =
+          specificMusclesByGroup[target.muscleGroup] ??
+          const <SpecificMuscle>[SpecificMuscle.fullBody];
+      final selectedSpecific = specificOptions.contains(target.specificMuscle)
+          ? target.specificMuscle
+          : specificOptions.first;
+
+      widgets.add(
+        Card(
+          key: ValueKey('target_${target.keyId}'),
+          margin: const EdgeInsets.only(bottom: 8),
+          child: Padding(
+            padding: const EdgeInsets.all(12),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Row(
+                  children: [
+                    Text(
+                      'Target ${i + 1}',
+                      style: Theme.of(context).textTheme.labelLarge,
+                    ),
+                    const Spacer(),
+                    IconButton(
+                      onPressed: _muscleTargets.length <= 1
+                          ? null
+                          : () {
+                              setState(() {
+                                _muscleTargets.removeAt(i);
+                              });
+                            },
+                      icon: const Icon(Icons.remove_circle_outline),
+                      tooltip: 'Remove target',
+                    ),
+                  ],
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<MuscleGroup>(
+                  key: ValueKey(
+                    'target_group_${target.keyId}_${target.muscleGroup.name}',
+                  ),
+                  initialValue: target.muscleGroup,
+                  decoration: const InputDecoration(
+                    labelText: 'Muscle group',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: MuscleGroup.values
+                      .map(
+                        (group) => DropdownMenuItem<MuscleGroup>(
+                          value: group,
+                          child: Text(group.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    final options = specificMusclesByGroup[value];
+                    setState(() {
+                      target.muscleGroup = value;
+                      if (options != null && options.isNotEmpty) {
+                        target.specificMuscle = options.first;
+                      }
+                    });
+                  },
+                ),
+                const SizedBox(height: 8),
+                DropdownButtonFormField<SpecificMuscle>(
+                  key: ValueKey(
+                    'target_specific_${target.keyId}_${target.muscleGroup.name}_${selectedSpecific.name}',
+                  ),
+                  initialValue: selectedSpecific,
+                  decoration: const InputDecoration(
+                    labelText: 'Specific muscle',
+                    border: OutlineInputBorder(),
+                  ),
+                  items: specificOptions
+                      .map(
+                        (muscle) => DropdownMenuItem<SpecificMuscle>(
+                          value: muscle,
+                          child: Text(muscle.label),
+                        ),
+                      )
+                      .toList(),
+                  onChanged: (value) {
+                    if (value == null) {
+                      return;
+                    }
+                    setState(() {
+                      target.specificMuscle = value;
+                    });
+                  },
+                ),
+              ],
+            ),
+          ),
+        ),
+      );
+    }
+
+    return widgets;
+  }
+
+  void _addMuscleTarget() {
+    final baseGroup = _muscleTargets.isEmpty
+        ? MuscleGroup.chest
+        : _muscleTargets.last.muscleGroup;
+    final specificOptions =
+        specificMusclesByGroup[baseGroup] ?? const <SpecificMuscle>[];
+    final specific = specificOptions.isEmpty
+        ? SpecificMuscle.fullBody
+        : specificOptions.first;
+
+    setState(() {
+      _muscleTargets.add(
+        _MuscleTargetSelection(
+          muscleGroup: baseGroup,
+          specificMuscle: specific,
+        ),
+      );
+    });
+  }
+
   void _hydrate(ExerciseTemplateModel existing) {
     _didHydrate = true;
     _nameController.text = existing.name;
     _mediaUrlController.text = existing.mediaUrl ?? '';
     _notesController.text = existing.notes ?? '';
     _mediaType = existing.mediaType;
-    _muscleGroup = existing.muscleGroup;
-    _specificMuscle = existing.specificMuscle;
+    _muscleTargets
+      ..clear()
+      ..addAll(
+        existing.resolveTargets().map(
+          (target) => _MuscleTargetSelection(
+            muscleGroup: target.muscleGroup,
+            specificMuscle: target.specificMuscle,
+          ),
+        ),
+      );
+    if (_muscleTargets.isEmpty) {
+      _muscleTargets.add(
+        _MuscleTargetSelection(
+          muscleGroup: existing.muscleGroup,
+          specificMuscle: existing.specificMuscle,
+        ),
+      );
+    }
     _defaultDifficulty = existing.defaultDifficulty;
     _equipment = existing.equipment;
     _isCompound = existing.isCompound;
@@ -423,7 +528,21 @@ class _ExerciseTemplateFormScreenState
     final compoundComponents = compoundOptions
         .where((template) => validCompoundIds.contains(template.id))
         .toList(growable: false);
-    final compoundTarget = _deriveCompoundTarget(compoundComponents);
+    final selectedTargets = _isCompound
+        ? _deriveCompoundTargets(compoundComponents)
+        : _normalizedTargets(_muscleTargets);
+
+    if (selectedTargets.isEmpty) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Add at least 1 muscle target.')),
+      );
+      return;
+    }
+
+    final primaryTarget = _resolvePrimaryTarget(
+      targets: selectedTargets,
+      isCompound: _isCompound,
+    );
 
     setState(() {
       _isSaving = true;
@@ -437,10 +556,10 @@ class _ExerciseTemplateFormScreenState
       ..name = _nameController.text.trim()
       ..mediaType = _mediaType
       ..mediaUrl = _nullIfEmpty(_mediaUrlController.text)
-      ..muscleGroup = _isCompound ? compoundTarget.muscleGroup : _muscleGroup
-      ..specificMuscle = _isCompound
-          ? compoundTarget.specificMuscle
-          : _specificMuscle
+      ..muscleGroup = primaryTarget.muscleGroup
+      ..specificMuscle = primaryTarget.specificMuscle
+      ..muscleGroups = _orderedMuscleGroups(selectedTargets)
+      ..specificMuscles = _orderedSpecificMuscles(selectedTargets)
       ..defaultDifficulty = _defaultDifficulty
       ..equipment = _equipment
       ..notes = _nullIfEmpty(_notesController.text)
@@ -479,28 +598,107 @@ class _ExerciseTemplateFormScreenState
     return options;
   }
 
-  ({MuscleGroup muscleGroup, SpecificMuscle specificMuscle})
-  _deriveCompoundTarget(List<ExerciseTemplateModel> components) {
+  List<ExerciseTarget> _deriveCompoundTargets(
+    List<ExerciseTemplateModel> components,
+  ) {
     if (components.isEmpty) {
+      return const <ExerciseTarget>[
+        (
+          muscleGroup: MuscleGroup.fullBody,
+          specificMuscle: SpecificMuscle.fullBody,
+        ),
+      ];
+    }
+
+    final targets = <ExerciseTarget>[];
+    final seenSpecifics = <SpecificMuscle>{};
+    for (final template in components) {
+      for (final target in template.resolveTargets()) {
+        if (seenSpecifics.add(target.specificMuscle)) {
+          targets.add(target);
+        }
+      }
+    }
+
+    if (targets.isNotEmpty) {
+      return targets;
+    }
+
+    return const <ExerciseTarget>[
+      (
+        muscleGroup: MuscleGroup.fullBody,
+        specificMuscle: SpecificMuscle.fullBody,
+      ),
+    ];
+  }
+
+  List<ExerciseTarget> _normalizedTargets(
+    List<_MuscleTargetSelection> selections,
+  ) {
+    final normalized = <ExerciseTarget>[];
+    final seenSpecifics = <SpecificMuscle>{};
+
+    for (final selection in selections) {
+      final options =
+          specificMusclesByGroup[selection.muscleGroup] ??
+          const <SpecificMuscle>[];
+      final specific =
+          options.contains(selection.specificMuscle) && options.isNotEmpty
+          ? selection.specificMuscle
+          : (options.isNotEmpty ? options.first : SpecificMuscle.fullBody);
+      if (seenSpecifics.add(specific)) {
+        normalized.add((
+          muscleGroup: selection.muscleGroup,
+          specificMuscle: specific,
+        ));
+      }
+    }
+
+    return normalized;
+  }
+
+  ExerciseTarget _resolvePrimaryTarget({
+    required List<ExerciseTarget> targets,
+    required bool isCompound,
+  }) {
+    if (targets.isEmpty) {
       return (
         muscleGroup: MuscleGroup.fullBody,
         specificMuscle: SpecificMuscle.fullBody,
       );
     }
-
-    final groups = components.map((template) => template.muscleGroup).toSet();
-    final specifics = components
-        .map((template) => template.specificMuscle)
-        .toSet();
-
-    if (groups.length == 1 && specifics.length == 1) {
-      return (muscleGroup: groups.first, specificMuscle: specifics.first);
+    if (targets.length == 1) {
+      return targets.first;
     }
+    if (isCompound) {
+      return (
+        muscleGroup: MuscleGroup.fullBody,
+        specificMuscle: SpecificMuscle.fullBody,
+      );
+    }
+    return targets.first;
+  }
 
-    return (
-      muscleGroup: MuscleGroup.fullBody,
-      specificMuscle: SpecificMuscle.fullBody,
-    );
+  List<MuscleGroup> _orderedMuscleGroups(List<ExerciseTarget> targets) {
+    final seen = <MuscleGroup>{};
+    final ordered = <MuscleGroup>[];
+    for (final target in targets) {
+      if (seen.add(target.muscleGroup)) {
+        ordered.add(target.muscleGroup);
+      }
+    }
+    return ordered;
+  }
+
+  List<SpecificMuscle> _orderedSpecificMuscles(List<ExerciseTarget> targets) {
+    final seen = <SpecificMuscle>{};
+    final ordered = <SpecificMuscle>[];
+    for (final target in targets) {
+      if (seen.add(target.specificMuscle)) {
+        ordered.add(target.specificMuscle);
+      }
+    }
+    return ordered;
   }
 
   Future<void> _delete(ExerciseTemplateModel existing) async {
@@ -603,9 +801,7 @@ class _CompoundExercisePicker extends StatelessWidget {
                   controlAffinity: ListTileControlAffinity.leading,
                   contentPadding: const EdgeInsets.symmetric(horizontal: 8),
                   title: Text(template.name),
-                  subtitle: Text(
-                    '${template.muscleGroup.label} • ${template.specificMuscle.label}',
-                  ),
+                  subtitle: Text(_muscleTargetSummary(template)),
                   onChanged: (value) {
                     onToggleTemplate(template.id, value ?? false);
                   },
@@ -619,4 +815,45 @@ class _CompoundExercisePicker extends StatelessWidget {
       ],
     );
   }
+}
+
+String _muscleTargetSummary(ExerciseTemplateModel template) {
+  final groups = template.resolveMuscleGroups();
+  final specifics = template.resolveSpecificMuscles();
+
+  if (groups.length == 1 && specifics.length == 1) {
+    return '${groups.first.label} • ${specifics.first.label}';
+  }
+
+  final groupSummary = _summarizeLabels(
+    groups.map((group) => group.label).toList(growable: false),
+  );
+  final specificSummary = _summarizeLabels(
+    specifics.map((muscle) => muscle.label).toList(growable: false),
+  );
+  return '$groupSummary • $specificSummary';
+}
+
+String _summarizeLabels(List<String> labels) {
+  if (labels.isEmpty) {
+    return 'Full body';
+  }
+  if (labels.length <= 2) {
+    return labels.join(', ');
+  }
+  return '${labels.take(2).join(', ')} +${labels.length - 2} more';
+}
+
+class _MuscleTargetSelection {
+  _MuscleTargetSelection({
+    required this.muscleGroup,
+    required this.specificMuscle,
+    int? keyId,
+  }) : keyId = keyId ?? _nextKeyId++;
+
+  static int _nextKeyId = 0;
+
+  final int keyId;
+  MuscleGroup muscleGroup;
+  SpecificMuscle specificMuscle;
 }

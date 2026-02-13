@@ -313,6 +313,8 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
       final entry = existing != null && targetTemplates.length == 1 && i == 0
           ? existing
           : ExerciseEntryModel();
+      final resolvedMuscleGroups = template.resolveMuscleGroups();
+      final resolvedSpecificMuscles = template.resolveSpecificMuscles();
 
       entry
         ..workoutSessionId = resolvedSession.id
@@ -328,7 +330,9 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
             ..reps = entry.value;
         }).toList()
         ..muscleGroup = template.muscleGroup
-        ..specificMuscle = template.specificMuscle;
+        ..specificMuscle = template.specificMuscle
+        ..muscleGroups = resolvedMuscleGroups
+        ..specificMuscles = resolvedSpecificMuscles;
 
       await repository.saveEntry(entry);
     }

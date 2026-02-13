@@ -109,15 +109,35 @@ class FirestoreExerciseTemplateRepository
       MediaType.values,
     );
     model.mediaUrl = data['mediaUrl'] as String?;
+    final parsedMuscleGroups = _parseEnumList<MuscleGroup>(
+      data['muscleGroups'],
+      MuscleGroup.values,
+    );
+    final parsedSpecificMuscles = _parseEnumList<SpecificMuscle>(
+      data['specificMuscles'],
+      SpecificMuscle.values,
+    );
+
     model.muscleGroup =
         _parseEnum<MuscleGroup>(data['muscleGroup'], MuscleGroup.values) ??
-        MuscleGroup.fullBody;
+        (parsedMuscleGroups.isNotEmpty
+            ? parsedMuscleGroups.first
+            : MuscleGroup.fullBody);
     model.specificMuscle =
         _parseEnum<SpecificMuscle>(
           data['specificMuscle'],
           SpecificMuscle.values,
         ) ??
-        SpecificMuscle.fullBody;
+        (parsedSpecificMuscles.isNotEmpty
+            ? parsedSpecificMuscles.first
+            : SpecificMuscle.fullBody);
+    model.specificMuscles = parsedSpecificMuscles.isNotEmpty
+        ? parsedSpecificMuscles
+        : <SpecificMuscle>[model.specificMuscle];
+    model.muscleGroups = model.specificMuscles
+        .map(_groupForSpecificMuscle)
+        .toSet()
+        .toList(growable: false);
     model.defaultDifficulty =
         _parseEnum<DifficultyLevel>(
           data['defaultDifficulty'],
@@ -143,12 +163,20 @@ class FirestoreExerciseTemplateRepository
   }
 
   Map<String, Object?> _toMap(ExerciseTemplateModel model) {
+    final resolvedMuscleGroups = model.resolveMuscleGroups();
+    final resolvedSpecificMuscles = model.resolveSpecificMuscles();
     return {
       'name': model.name,
       'mediaType': model.mediaType?.name,
       'mediaUrl': model.mediaUrl,
       'muscleGroup': model.muscleGroup.name,
       'specificMuscle': model.specificMuscle.name,
+      'muscleGroups': resolvedMuscleGroups
+          .map((group) => group.name)
+          .toList(growable: false),
+      'specificMuscles': resolvedSpecificMuscles
+          .map((muscle) => muscle.name)
+          .toList(growable: false),
       'defaultDifficulty': model.defaultDifficulty.name,
       'equipment': model.equipment?.name,
       'notes': model.notes,
@@ -194,6 +222,15 @@ class FirestoreExerciseTemplateRepository
     return int.parse(DateFormat('yyyyMMddHHmmssSSS').format(now));
   }
 
+  MuscleGroup _groupForSpecificMuscle(SpecificMuscle muscle) {
+    for (final entry in specificMusclesByGroup.entries) {
+      if (entry.value.contains(muscle)) {
+        return entry.key;
+      }
+    }
+    return MuscleGroup.fullBody;
+  }
+
   DateTime _parseDate(Object? raw) {
     if (raw is Timestamp) {
       return raw.toDate();
@@ -219,6 +256,22 @@ class FirestoreExerciseTemplateRepository
       return const [];
     }
     final parsed = raw.map(_asInt).whereType<int>().toList(growable: false);
+    return parsed;
+  }
+
+  List<T> _parseEnumList<T>(Object? raw, List<T> values) {
+    if (raw is! Iterable) {
+      return const [];
+    }
+
+    final seen = <T>{};
+    final parsed = <T>[];
+    for (final item in raw) {
+      final value = _parseEnum<T>(item, values);
+      if (value != null && seen.add(value)) {
+        parsed.add(value);
+      }
+    }
     return parsed;
   }
 }

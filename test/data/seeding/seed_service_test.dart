@@ -199,6 +199,8 @@ ExerciseTemplateModel _testTemplate({
     ..name = name
     ..muscleGroup = muscleGroup
     ..specificMuscle = specificMuscle
+    ..muscleGroups = <MuscleGroup>[muscleGroup]
+    ..specificMuscles = <SpecificMuscle>[specificMuscle]
     ..defaultDifficulty = DifficultyLevel.moderate
     ..equipment = EquipmentType.bodyweight
     ..progressionSettings = progression
@@ -287,6 +289,8 @@ ExerciseTemplateModel _cloneTemplate(ExerciseTemplateModel source) {
     ..mediaUrl = source.mediaUrl
     ..muscleGroup = source.muscleGroup
     ..specificMuscle = source.specificMuscle
+    ..muscleGroups = source.muscleGroups.toList(growable: false)
+    ..specificMuscles = source.specificMuscles.toList(growable: false)
     ..defaultDifficulty = source.defaultDifficulty
     ..equipment = source.equipment
     ..notes = source.notes

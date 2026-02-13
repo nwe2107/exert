@@ -72,30 +72,42 @@ const ExerciseTemplateModelSchema = CollectionSchema(
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelmuscleGroupEnumValueMap,
     ),
-    r'name': PropertySchema(
+    r'muscleGroups': PropertySchema(
       id: 10,
+      name: r'muscleGroups',
+      type: IsarType.stringList,
+      enumMap: _ExerciseTemplateModelmuscleGroupsEnumValueMap,
+    ),
+    r'name': PropertySchema(
+      id: 11,
       name: r'name',
       type: IsarType.string,
     ),
     r'notes': PropertySchema(
-      id: 11,
+      id: 12,
       name: r'notes',
       type: IsarType.string,
     ),
     r'progressionSettings': PropertySchema(
-      id: 12,
+      id: 13,
       name: r'progressionSettings',
       type: IsarType.object,
       target: r'ProgressionSettingsModel',
     ),
     r'specificMuscle': PropertySchema(
-      id: 13,
+      id: 14,
       name: r'specificMuscle',
       type: IsarType.string,
       enumMap: _ExerciseTemplateModelspecificMuscleEnumValueMap,
     ),
+    r'specificMuscles': PropertySchema(
+      id: 15,
+      name: r'specificMuscles',
+      type: IsarType.stringList,
+      enumMap: _ExerciseTemplateModelspecificMusclesEnumValueMap,
+    ),
     r'updatedAt': PropertySchema(
-      id: 14,
+      id: 16,
       name: r'updatedAt',
       type: IsarType.dateTime,
     )
@@ -158,6 +170,13 @@ int _exerciseTemplateModelEstimateSize(
     }
   }
   bytesCount += 3 + object.muscleGroup.name.length * 3;
+  bytesCount += 3 + object.muscleGroups.length * 3;
+  {
+    for (var i = 0; i < object.muscleGroups.length; i++) {
+      final value = object.muscleGroups[i];
+      bytesCount += value.name.length * 3;
+    }
+  }
   bytesCount += 3 + object.name.length * 3;
   {
     final value = object.notes;
@@ -174,6 +193,13 @@ int _exerciseTemplateModelEstimateSize(
     }
   }
   bytesCount += 3 + object.specificMuscle.name.length * 3;
+  bytesCount += 3 + object.specificMuscles.length * 3;
+  {
+    for (var i = 0; i < object.specificMuscles.length; i++) {
+      final value = object.specificMuscles[i];
+      bytesCount += value.name.length * 3;
+    }
+  }
   return bytesCount;
 }
 
@@ -193,16 +219,20 @@ void _exerciseTemplateModelSerialize(
   writer.writeString(offsets[7], object.mediaType?.name);
   writer.writeString(offsets[8], object.mediaUrl);
   writer.writeString(offsets[9], object.muscleGroup.name);
-  writer.writeString(offsets[10], object.name);
-  writer.writeString(offsets[11], object.notes);
+  writer.writeStringList(
+      offsets[10], object.muscleGroups.map((e) => e.name).toList());
+  writer.writeString(offsets[11], object.name);
+  writer.writeString(offsets[12], object.notes);
   writer.writeObject<ProgressionSettingsModel>(
-    offsets[12],
+    offsets[13],
     allOffsets,
     ProgressionSettingsModelSchema.serialize,
     object.progressionSettings,
   );
-  writer.writeString(offsets[13], object.specificMuscle.name);
-  writer.writeDateTime(offsets[14], object.updatedAt);
+  writer.writeString(offsets[14], object.specificMuscle.name);
+  writer.writeStringList(
+      offsets[15], object.specificMuscles.map((e) => e.name).toList());
+  writer.writeDateTime(offsets[16], object.updatedAt);
 }
 
 ExerciseTemplateModel _exerciseTemplateModelDeserialize(
@@ -229,18 +259,32 @@ ExerciseTemplateModel _exerciseTemplateModelDeserialize(
   object.muscleGroup = _ExerciseTemplateModelmuscleGroupValueEnumMap[
           reader.readStringOrNull(offsets[9])] ??
       MuscleGroup.chest;
-  object.name = reader.readString(offsets[10]);
-  object.notes = reader.readStringOrNull(offsets[11]);
+  object.muscleGroups = reader
+          .readStringList(offsets[10])
+          ?.map((e) =>
+              _ExerciseTemplateModelmuscleGroupsValueEnumMap[e] ??
+              MuscleGroup.chest)
+          .toList() ??
+      [];
+  object.name = reader.readString(offsets[11]);
+  object.notes = reader.readStringOrNull(offsets[12]);
   object.progressionSettings =
       reader.readObjectOrNull<ProgressionSettingsModel>(
-    offsets[12],
+    offsets[13],
     ProgressionSettingsModelSchema.deserialize,
     allOffsets,
   );
   object.specificMuscle = _ExerciseTemplateModelspecificMuscleValueEnumMap[
-          reader.readStringOrNull(offsets[13])] ??
+          reader.readStringOrNull(offsets[14])] ??
       SpecificMuscle.upperChest;
-  object.updatedAt = reader.readDateTime(offsets[14]);
+  object.specificMuscles = reader
+          .readStringList(offsets[15])
+          ?.map((e) =>
+              _ExerciseTemplateModelspecificMusclesValueEnumMap[e] ??
+              SpecificMuscle.upperChest)
+          .toList() ??
+      [];
+  object.updatedAt = reader.readDateTime(offsets[16]);
   return object;
 }
 
@@ -278,20 +322,36 @@ P _exerciseTemplateModelDeserializeProp<P>(
               reader.readStringOrNull(offset)] ??
           MuscleGroup.chest) as P;
     case 10:
-      return (reader.readString(offset)) as P;
+      return (reader
+              .readStringList(offset)
+              ?.map((e) =>
+                  _ExerciseTemplateModelmuscleGroupsValueEnumMap[e] ??
+                  MuscleGroup.chest)
+              .toList() ??
+          []) as P;
     case 11:
-      return (reader.readStringOrNull(offset)) as P;
+      return (reader.readString(offset)) as P;
     case 12:
+      return (reader.readStringOrNull(offset)) as P;
+    case 13:
       return (reader.readObjectOrNull<ProgressionSettingsModel>(
         offset,
         ProgressionSettingsModelSchema.deserialize,
         allOffsets,
       )) as P;
-    case 13:
+    case 14:
       return (_ExerciseTemplateModelspecificMuscleValueEnumMap[
               reader.readStringOrNull(offset)] ??
           SpecificMuscle.upperChest) as P;
-    case 14:
+    case 15:
+      return (reader
+              .readStringList(offset)
+              ?.map((e) =>
+                  _ExerciseTemplateModelspecificMusclesValueEnumMap[e] ??
+                  SpecificMuscle.upperChest)
+              .toList() ??
+          []) as P;
+    case 16:
       return (reader.readDateTime(offset)) as P;
     default:
       throw IsarError('Unknown property with id $propertyId');
@@ -364,6 +424,30 @@ const _ExerciseTemplateModelmuscleGroupValueEnumMap = {
   r'mobility': MuscleGroup.mobility,
   r'fullBody': MuscleGroup.fullBody,
 };
+const _ExerciseTemplateModelmuscleGroupsEnumValueMap = {
+  r'chest': r'chest',
+  r'back': r'back',
+  r'shoulders': r'shoulders',
+  r'arms': r'arms',
+  r'legs': r'legs',
+  r'glutes': r'glutes',
+  r'core': r'core',
+  r'cardio': r'cardio',
+  r'mobility': r'mobility',
+  r'fullBody': r'fullBody',
+};
+const _ExerciseTemplateModelmuscleGroupsValueEnumMap = {
+  r'chest': MuscleGroup.chest,
+  r'back': MuscleGroup.back,
+  r'shoulders': MuscleGroup.shoulders,
+  r'arms': MuscleGroup.arms,
+  r'legs': MuscleGroup.legs,
+  r'glutes': MuscleGroup.glutes,
+  r'core': MuscleGroup.core,
+  r'cardio': MuscleGroup.cardio,
+  r'mobility': MuscleGroup.mobility,
+  r'fullBody': MuscleGroup.fullBody,
+};
 const _ExerciseTemplateModelspecificMuscleEnumValueMap = {
   r'upperChest': r'upperChest',
   r'midChest': r'midChest',
@@ -395,6 +479,66 @@ const _ExerciseTemplateModelspecificMuscleEnumValueMap = {
   r'fullBody': r'fullBody',
 };
 const _ExerciseTemplateModelspecificMuscleValueEnumMap = {
+  r'upperChest': SpecificMuscle.upperChest,
+  r'midChest': SpecificMuscle.midChest,
+  r'lowerChest': SpecificMuscle.lowerChest,
+  r'lats': SpecificMuscle.lats,
+  r'rhomboids': SpecificMuscle.rhomboids,
+  r'traps': SpecificMuscle.traps,
+  r'lowerBack': SpecificMuscle.lowerBack,
+  r'frontDelts': SpecificMuscle.frontDelts,
+  r'sideDelts': SpecificMuscle.sideDelts,
+  r'rearDelts': SpecificMuscle.rearDelts,
+  r'biceps': SpecificMuscle.biceps,
+  r'triceps': SpecificMuscle.triceps,
+  r'forearms': SpecificMuscle.forearms,
+  r'quads': SpecificMuscle.quads,
+  r'hamstrings': SpecificMuscle.hamstrings,
+  r'calves': SpecificMuscle.calves,
+  r'adductors': SpecificMuscle.adductors,
+  r'gluteMax': SpecificMuscle.gluteMax,
+  r'gluteMed': SpecificMuscle.gluteMed,
+  r'abs': SpecificMuscle.abs,
+  r'obliques': SpecificMuscle.obliques,
+  r'spinalErectors': SpecificMuscle.spinalErectors,
+  r'aerobic': SpecificMuscle.aerobic,
+  r'anaerobic': SpecificMuscle.anaerobic,
+  r'hips': SpecificMuscle.hips,
+  r'thoracic': SpecificMuscle.thoracic,
+  r'ankles': SpecificMuscle.ankles,
+  r'fullBody': SpecificMuscle.fullBody,
+};
+const _ExerciseTemplateModelspecificMusclesEnumValueMap = {
+  r'upperChest': r'upperChest',
+  r'midChest': r'midChest',
+  r'lowerChest': r'lowerChest',
+  r'lats': r'lats',
+  r'rhomboids': r'rhomboids',
+  r'traps': r'traps',
+  r'lowerBack': r'lowerBack',
+  r'frontDelts': r'frontDelts',
+  r'sideDelts': r'sideDelts',
+  r'rearDelts': r'rearDelts',
+  r'biceps': r'biceps',
+  r'triceps': r'triceps',
+  r'forearms': r'forearms',
+  r'quads': r'quads',
+  r'hamstrings': r'hamstrings',
+  r'calves': r'calves',
+  r'adductors': r'adductors',
+  r'gluteMax': r'gluteMax',
+  r'gluteMed': r'gluteMed',
+  r'abs': r'abs',
+  r'obliques': r'obliques',
+  r'spinalErectors': r'spinalErectors',
+  r'aerobic': r'aerobic',
+  r'anaerobic': r'anaerobic',
+  r'hips': r'hips',
+  r'thoracic': r'thoracic',
+  r'ankles': r'ankles',
+  r'fullBody': r'fullBody',
+};
+const _ExerciseTemplateModelspecificMusclesValueEnumMap = {
   r'upperChest': SpecificMuscle.upperChest,
   r'midChest': SpecificMuscle.midChest,
   r'lowerChest': SpecificMuscle.lowerChest,
@@ -1793,6 +1937,233 @@ extension ExerciseTemplateModelQueryFilter on QueryBuilder<
   }
 
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementEqualTo(
+    MuscleGroup value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementGreaterThan(
+    MuscleGroup value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementLessThan(
+    MuscleGroup value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementBetween(
+    MuscleGroup lower,
+    MuscleGroup upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'muscleGroups',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      muscleGroupsElementContains(String value, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'muscleGroups',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      muscleGroupsElementMatches(String pattern, {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'muscleGroups',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'muscleGroups',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'muscleGroups',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> muscleGroupsLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'muscleGroups',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
       QAfterFilterCondition> nameEqualTo(
     String value, {
     bool caseSensitive = true,
@@ -2239,6 +2610,235 @@ extension ExerciseTemplateModelQueryFilter on QueryBuilder<
         property: r'specificMuscle',
         value: '',
       ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementEqualTo(
+    SpecificMuscle value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementGreaterThan(
+    SpecificMuscle value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        include: include,
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementLessThan(
+    SpecificMuscle value, {
+    bool include = false,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.lessThan(
+        include: include,
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementBetween(
+    SpecificMuscle lower,
+    SpecificMuscle upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.between(
+        property: r'specificMuscles',
+        lower: lower,
+        includeLower: includeLower,
+        upper: upper,
+        includeUpper: includeUpper,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementStartsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.startsWith(
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementEndsWith(
+    String value, {
+    bool caseSensitive = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.endsWith(
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      specificMusclesElementContains(String value,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.contains(
+        property: r'specificMuscles',
+        value: value,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+          QAfterFilterCondition>
+      specificMusclesElementMatches(String pattern,
+          {bool caseSensitive = true}) {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.matches(
+        property: r'specificMuscles',
+        wildcard: pattern,
+        caseSensitive: caseSensitive,
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.equalTo(
+        property: r'specificMuscles',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesElementIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addFilterCondition(FilterCondition.greaterThan(
+        property: r'specificMuscles',
+        value: '',
+      ));
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesLengthEqualTo(int length) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        length,
+        true,
+        length,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesIsEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        0,
+        true,
+        0,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesIsNotEmpty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        0,
+        false,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesLengthLessThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        0,
+        true,
+        length,
+        include,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesLengthGreaterThan(
+    int length, {
+    bool include = false,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        length,
+        include,
+        999999,
+        true,
+      );
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel,
+      QAfterFilterCondition> specificMusclesLengthBetween(
+    int lower,
+    int upper, {
+    bool includeLower = true,
+    bool includeUpper = true,
+  }) {
+    return QueryBuilder.apply(this, (query) {
+      return query.listLength(
+        r'specificMuscles',
+        lower,
+        includeLower,
+        upper,
+        includeUpper,
+      );
     });
   }
 
@@ -2772,6 +3372,13 @@ extension ExerciseTemplateModelQueryWhereDistinct
   }
 
   QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
+      distinctByMuscleGroups() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'muscleGroups');
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
       distinctByName({bool caseSensitive = true}) {
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'name', caseSensitive: caseSensitive);
@@ -2790,6 +3397,13 @@ extension ExerciseTemplateModelQueryWhereDistinct
     return QueryBuilder.apply(this, (query) {
       return query.addDistinctBy(r'specificMuscle',
           caseSensitive: caseSensitive);
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, ExerciseTemplateModel, QDistinct>
+      distinctBySpecificMuscles() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addDistinctBy(r'specificMuscles');
     });
   }
 
@@ -2879,6 +3493,13 @@ extension ExerciseTemplateModelQueryProperty on QueryBuilder<
     });
   }
 
+  QueryBuilder<ExerciseTemplateModel, List<MuscleGroup>, QQueryOperations>
+      muscleGroupsProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'muscleGroups');
+    });
+  }
+
   QueryBuilder<ExerciseTemplateModel, String, QQueryOperations> nameProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'name');
@@ -2903,6 +3524,13 @@ extension ExerciseTemplateModelQueryProperty on QueryBuilder<
       specificMuscleProperty() {
     return QueryBuilder.apply(this, (query) {
       return query.addPropertyName(r'specificMuscle');
+    });
+  }
+
+  QueryBuilder<ExerciseTemplateModel, List<SpecificMuscle>, QQueryOperations>
+      specificMusclesProperty() {
+    return QueryBuilder.apply(this, (query) {
+      return query.addPropertyName(r'specificMuscles');
     });
   }
 

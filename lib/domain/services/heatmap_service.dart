@@ -55,7 +55,8 @@ class HeatmapService {
 
     final allSpecificMuscles = <(MuscleGroup, SpecificMuscle)>[];
     for (final group in MuscleGroup.values) {
-      final specifics = specificMusclesByGroup[group] ?? const <SpecificMuscle>[];
+      final specifics =
+          specificMusclesByGroup[group] ?? const <SpecificMuscle>[];
       for (final specific in specifics) {
         allSpecificMuscles.add((group, specific));
       }
@@ -75,20 +76,24 @@ class HeatmapService {
       }
 
       final trainedDay = normalizeLocalDate(session.date);
-      final previous = latestDateByMuscle[entry.specificMuscle];
       final exerciseName = templatesById[entry.exerciseTemplateId]?.name;
 
-      if (previous == null || trainedDay.isAfter(previous)) {
-        latestDateByMuscle[entry.specificMuscle] = trainedDay;
-        exercisesByMuscleOnLastDate[entry.specificMuscle] =
-            exerciseName == null ? <String>{} : <String>{exerciseName};
-        continue;
-      }
+      for (final muscle in entry.resolveSpecificMuscles()) {
+        final previous = latestDateByMuscle[muscle];
 
-      if (trainedDay == previous && exerciseName != null) {
-        exercisesByMuscleOnLastDate
-            .putIfAbsent(entry.specificMuscle, () => <String>{})
-            .add(exerciseName);
+        if (previous == null || trainedDay.isAfter(previous)) {
+          latestDateByMuscle[muscle] = trainedDay;
+          exercisesByMuscleOnLastDate[muscle] = exerciseName == null
+              ? <String>{}
+              : <String>{exerciseName};
+          continue;
+        }
+
+        if (trainedDay == previous && exerciseName != null) {
+          exercisesByMuscleOnLastDate
+              .putIfAbsent(muscle, () => <String>{})
+              .add(exerciseName);
+        }
       }
     }
 
@@ -100,8 +105,9 @@ class HeatmapService {
       return MuscleHeatmapItem(
         group: group,
         specificMuscle: specificMuscle,
-        daysSinceLastTrained:
-            lastDate == null ? null : daysBetween(lastDate, normalizedToday),
+        daysSinceLastTrained: lastDate == null
+            ? null
+            : daysBetween(lastDate, normalizedToday),
         lastTrainedDate: lastDate,
         exercisesOnLastTrainedDate:
             exercisesByMuscleOnLastDate[specificMuscle]?.toList() ?? const [],

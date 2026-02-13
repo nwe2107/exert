@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/enums/app_enums.dart';
+import '../../../data/models/exercise_template_model.dart';
 import 'library_providers.dart';
 
 class LibraryScreen extends ConsumerStatefulWidget {
@@ -173,7 +174,7 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
                       subtitle: Text(
                         template.isCompound
                             ? 'Compound • ${template.compoundExerciseTemplateIds.length} exercises'
-                            : '${template.muscleGroup.label} • ${template.specificMuscle.label}',
+                            : _muscleTargetSubtitle(template),
                       ),
                       trailing: const Icon(Icons.chevron_right),
                       onTap: () => context.push('/library/edit/${template.id}'),
@@ -240,5 +241,32 @@ class _LibraryScreenState extends ConsumerState<LibraryScreen> {
       }
     }
     return MuscleGroup.fullBody;
+  }
+
+  static String _muscleTargetSubtitle(ExerciseTemplateModel template) {
+    final groups = template.resolveMuscleGroups();
+    final specifics = template.resolveSpecificMuscles();
+
+    if (groups.length == 1 && specifics.length == 1) {
+      return '${groups.first.label} • ${specifics.first.label}';
+    }
+
+    final groupsLabel = _summarizeLabels(
+      groups.map((group) => group.label).toList(growable: false),
+    );
+    final specificsLabel = _summarizeLabels(
+      specifics.map((muscle) => muscle.label).toList(growable: false),
+    );
+    return '$groupsLabel • $specificsLabel';
+  }
+
+  static String _summarizeLabels(List<String> labels) {
+    if (labels.isEmpty) {
+      return 'Full body';
+    }
+    if (labels.length <= 2) {
+      return labels.join(', ');
+    }
+    return '${labels.take(2).join(', ')} +${labels.length - 2} more';
   }
 }

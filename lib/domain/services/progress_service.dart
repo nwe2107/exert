@@ -164,7 +164,8 @@ class ProgressService {
     final aggregateBySessionId = <int, _SessionWorkoutAggregate>{};
 
     for (final entry in entries) {
-      if (entry.deletedAt != null || entry.specificMuscle != muscle) {
+      if (entry.deletedAt != null ||
+          !entry.resolveSpecificMuscles().contains(muscle)) {
         continue;
       }
       if (exerciseTemplateId != null &&

@@ -23,9 +23,11 @@ List<ExerciseTemplateModel> applyLibraryFilters({
     final matchesQuery =
         normalizedQuery.isEmpty ||
         template.name.toLowerCase().contains(normalizedQuery);
-    final matchesGroup = group == null || template.muscleGroup == group;
+    final matchesGroup =
+        group == null || template.resolveMuscleGroups().contains(group);
     final matchesSpecific =
-        specificMuscle == null || template.specificMuscle == specificMuscle;
+        specificMuscle == null ||
+        template.resolveSpecificMuscles().contains(specificMuscle);
     return matchesQuery && matchesGroup && matchesSpecific;
   }).toList();
 }

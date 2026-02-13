@@ -114,7 +114,9 @@ final progressExerciseOptionsProvider =
           template.id: template.name,
       };
       final templateIds = entriesAsync.value!
-          .where((entry) => entry.specificMuscle == selectedMuscle)
+          .where(
+            (entry) => entry.resolveSpecificMuscles().contains(selectedMuscle),
+          )
           .map((entry) => entry.exerciseTemplateId)
           .toSet();
 
