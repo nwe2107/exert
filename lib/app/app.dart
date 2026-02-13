@@ -18,6 +18,20 @@ class ExertApp extends ConsumerWidget {
     return MaterialApp.router(
       title: 'Exert Discipline',
       debugShowCheckedModeBanner: false,
+      builder: (context, child) {
+        return GestureDetector(
+          behavior: HitTestBehavior.translucent,
+          onTap: () {
+            final focusScope = FocusScope.of(context);
+            if (!focusScope.hasPrimaryFocus &&
+                focusScope.focusedChild != null) {
+              focusScope.unfocus();
+            }
+          },
+          child: child ?? const SizedBox.shrink(),
+        );
+      },
+      scrollBehavior: const _AppScrollBehavior(),
       theme: ThemeData(
         useMaterial3: true,
         colorScheme: ColorScheme.fromSeed(
@@ -35,5 +49,16 @@ class ExertApp extends ConsumerWidget {
       themeMode: themeMode,
       routerConfig: router,
     );
+  }
+}
+
+class _AppScrollBehavior extends MaterialScrollBehavior {
+  const _AppScrollBehavior();
+
+  @override
+  ScrollViewKeyboardDismissBehavior getKeyboardDismissBehavior(
+    BuildContext context,
+  ) {
+    return ScrollViewKeyboardDismissBehavior.onDrag;
   }
 }
