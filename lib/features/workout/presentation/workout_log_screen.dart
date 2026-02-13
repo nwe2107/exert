@@ -152,7 +152,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                                     icon: const Icon(Icons.edit),
                                   ),
                                   IconButton(
-                                    onPressed: () => _deleteEntry(entry.id),
+                                    onPressed: () => _deleteEntry(entry),
                                     icon: const Icon(Icons.delete_outline),
                                   ),
                                 ],
@@ -289,7 +289,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final repository = ref.read(workoutRepositoryProvider);
 
     if (result.deleteRequested && existing != null) {
-      await repository.deleteEntry(existing.id);
+      await _deleteEntry(existing);
       return;
     }
 
@@ -305,7 +305,10 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     );
 
     if (existing != null && targetTemplates.length != 1) {
-      await repository.deleteEntry(existing.id);
+      await repository.deleteEntry(
+        existing.id,
+        sessionId: existing.workoutSessionId,
+      );
     }
 
     for (var i = 0; i < targetTemplates.length; i++) {
@@ -358,9 +361,24 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     return session;
   }
 
-  Future<void> _deleteEntry(int id) async {
+  Future<void> _deleteEntry(ExerciseEntryModel entry) async {
     final repository = ref.read(workoutRepositoryProvider);
-    await repository.deleteEntry(id);
+    try {
+      await repository.deleteEntry(entry.id, sessionId: entry.workoutSessionId);
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('Entry deleted.')));
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(SnackBar(content: Text('Failed to delete entry: $error')));
+    }
   }
 
   String? _nullIfEmpty(String? value) {

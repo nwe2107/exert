@@ -170,7 +170,7 @@ class IsarWorkoutRepository implements WorkoutRepository {
   }
 
   @override
-  Future<void> deleteEntry(Id entryId) async {
+  Future<void> deleteEntry(Id entryId, {Id? sessionId}) async {
     final entry = await _isar.exerciseEntries.get(entryId);
     if (entry == null || entry.deletedAt != null) {
       return;

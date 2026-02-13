@@ -388,7 +388,7 @@ class _FakeWorkoutRepository implements WorkoutRepository {
   }
 
   @override
-  Future<void> deleteEntry(Id entryId) async {}
+  Future<void> deleteEntry(Id entryId, {Id? sessionId}) async {}
 
   @override
   Future<void> deleteEntriesForSession(Id sessionId) async {}

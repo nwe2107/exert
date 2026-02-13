@@ -34,7 +34,7 @@ abstract class WorkoutRepository {
 
   Future<Id> saveEntry(ExerciseEntryModel entry);
 
-  Future<void> deleteEntry(Id entryId);
+  Future<void> deleteEntry(Id entryId, {Id? sessionId});
 
   Future<void> deleteEntriesForSession(Id sessionId);
 

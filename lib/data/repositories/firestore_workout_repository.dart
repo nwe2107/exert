@@ -194,10 +194,24 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
   }
 
   @override
-  Future<void> deleteEntry(Id entryId) async {
-    // Entry IDs are unique only within a session; full delete needs sessionId.
-    // This method is unused in current UI; left unimplemented for clarity.
-    throw UnimplementedError('Use deleteEntriesForSession instead.');
+  Future<void> deleteEntry(Id entryId, {Id? sessionId}) async {
+    if (sessionId != null) {
+      await _entriesForSession(sessionId).doc(entryId.toString()).delete();
+      return;
+    }
+
+    // Backward-compatible fallback when the caller has only entryId.
+    final sessionSnapshot = await _sessions.get();
+    for (final sessionDoc in sessionSnapshot.docs) {
+      final candidate = _entriesForSession(
+        (sessionDoc.data()['id'] as num).toInt(),
+      ).doc(entryId.toString());
+      final exists = await candidate.get();
+      if (exists.exists) {
+        await candidate.delete();
+        return;
+      }
+    }
   }
 
   @override
