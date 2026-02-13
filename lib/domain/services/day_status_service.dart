@@ -2,7 +2,7 @@ import '../../core/enums/app_enums.dart';
 import '../../core/utils/date_utils.dart';
 import '../../data/models/workout_session_model.dart';
 
-enum CalendarDayStatus { success, partial, failure, rest, empty }
+enum CalendarDayStatus { success, partial, failure, rest, planned, empty }
 
 class DayStatusService {
   CalendarDayStatus statusForDate({
@@ -18,6 +18,9 @@ class DayStatusService {
         : normalizeLocalDate(trackingStartDate);
 
     if (session != null) {
+      if (targetDay.isAfter(currentDay)) {
+        return CalendarDayStatus.planned;
+      }
       switch (session.status) {
         case SessionStatus.success:
           return CalendarDayStatus.success;

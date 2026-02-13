@@ -47,6 +47,19 @@ void main() {
 
       expect(status, CalendarDayStatus.rest);
     });
+
+    test('returns planned for future date with a logged session', () {
+      final service = DayStatusService();
+
+      final status = service.statusForDate(
+        date: DateTime(2026, 2, 14),
+        session: _session(SessionStatus.success),
+        today: DateTime(2026, 2, 12),
+        trackingStartDate: DateTime(2026, 2, 1),
+      );
+
+      expect(status, CalendarDayStatus.planned);
+    });
   });
 }
 

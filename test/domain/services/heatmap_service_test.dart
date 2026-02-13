@@ -81,6 +81,40 @@ void main() {
       expect(hamstringsItem.daysSinceLastTrained, isNull);
       expect(hamstringsItem.exercisesOnLastTrainedDate, isEmpty);
     });
+
+    test('ignores future logged sessions for recency calculations', () {
+      final service = HeatmapService();
+      final sessions = [_session(id: 30, date: DateTime(2026, 2, 15))];
+      final entries = [
+        _entry(
+          id: 300,
+          sessionId: 30,
+          templateId: 3,
+          primaryMuscle: SpecificMuscle.abs,
+          allMuscles: const [SpecificMuscle.abs],
+        ),
+      ];
+      final templatesById = <int, ExerciseTemplateModel>{
+        3: _template(
+          id: 3,
+          name: 'Crunches',
+          primaryMuscle: SpecificMuscle.abs,
+          allMuscles: const [SpecificMuscle.abs],
+        ),
+      };
+
+      final items = service.build(
+        today: DateTime(2026, 2, 13),
+        sessions: sessions,
+        entries: entries,
+        templatesById: templatesById,
+      );
+
+      final absItem = _itemFor(items, SpecificMuscle.abs);
+
+      expect(absItem.daysSinceLastTrained, isNull);
+      expect(absItem.exercisesOnLastTrainedDate, isEmpty);
+    });
   });
 }
 

@@ -49,7 +49,8 @@ class HeatmapService {
       for (final session in sessions)
         if (session.deletedAt == null &&
             (session.status == SessionStatus.success ||
-                session.status == SessionStatus.partial))
+                session.status == SessionStatus.partial) &&
+            !normalizeLocalDate(session.date).isAfter(normalizedToday))
           session.id: session,
     };
 

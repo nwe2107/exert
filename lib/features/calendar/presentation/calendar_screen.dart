@@ -340,6 +340,8 @@ class _CalendarDayCell extends StatelessWidget {
         return Colors.red;
       case CalendarDayStatus.rest:
         return Colors.blue;
+      case CalendarDayStatus.planned:
+        return Colors.purple;
       case CalendarDayStatus.empty:
         return Theme.of(context).colorScheme.outlineVariant;
     }
