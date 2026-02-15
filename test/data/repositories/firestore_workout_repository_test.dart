@@ -7,6 +7,29 @@ import 'package:flutter_test/flutter_test.dart';
 
 void main() {
   group('FirestoreWorkoutRepository', () {
+    test('deleteSession removes session and all nested entries', () async {
+      final firestore = FakeFirebaseFirestore();
+      final repository = FirestoreWorkoutRepository(firestore, 'user_1');
+
+      final session = WorkoutSessionModel()
+        ..date = DateTime(2026, 2, 16)
+        ..status = SessionStatus.success;
+      final sessionId = await repository.saveSession(session);
+      session.id = sessionId;
+
+      final first = _entry(workoutSessionId: sessionId, exerciseTemplateId: 1);
+      final second = _entry(workoutSessionId: sessionId, exerciseTemplateId: 2);
+      await repository.saveEntry(first);
+      await repository.saveEntry(second);
+
+      await repository.deleteSession(sessionId);
+
+      final loadedSession = await repository.getSessionByDate(session.date);
+      final loadedEntries = await repository.getEntriesForSession(sessionId);
+      expect(loadedSession, isNull);
+      expect(loadedEntries, isEmpty);
+    });
+
     test(
       'deleteEntry with sessionId removes only the targeted entry',
       () async {

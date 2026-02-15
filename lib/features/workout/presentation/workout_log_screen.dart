@@ -30,6 +30,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   bool _savingSession = false;
   bool _savingTemplate = false;
   bool _applyingTemplate = false;
+  bool _clearingProgress = false;
 
   @override
   void dispose() {
@@ -65,6 +66,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                 durationController: _durationController,
                 notesController: _notesController,
                 saving: _savingSession,
+                clearing: _clearingProgress,
                 onStatusChanged: (value) {
                   setState(() {
                     _status = value;
@@ -73,6 +75,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                 onSave: () => _saveSession(day, existing: session),
                 onMarkRest: () =>
                     _quickStatus(day, SessionStatus.rest, existing: session),
+                onClearProgress: () => _clearProgressForDay(day),
               ),
               const SizedBox(height: 16),
               Text('Entries', style: Theme.of(context).textTheme.titleMedium),
@@ -313,6 +316,84 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Day marked as ${status.label.toLowerCase()}.')),
     );
+  }
+
+  Future<void> _clearProgressForDay(DateTime date) async {
+    if (_clearingProgress) {
+      return;
+    }
+
+    final repository = ref.read(workoutRepositoryProvider);
+    final existingSession = await repository.getSessionByDate(date);
+    if (existingSession == null) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('No progress to clear for this day.')),
+      );
+      return;
+    }
+
+    if (!mounted) {
+      return;
+    }
+
+    final shouldClear = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Clear day progress?'),
+          content: const Text(
+            'This removes the session and all exercise entries for this day.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Clear'),
+            ),
+          ],
+        );
+      },
+    );
+
+    if (shouldClear != true) {
+      return;
+    }
+
+    setState(() {
+      _clearingProgress = true;
+    });
+
+    try {
+      await repository.deleteEntriesForSession(existingSession.id);
+      await repository.deleteSession(existingSession.id);
+      _hydratedSessionFingerprint = null;
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text('Cleared progress for this day.')),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to clear progress: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _clearingProgress = false;
+        });
+      }
+    }
   }
 
   Future<void> _saveCurrentWorkoutTemplate(DateTime date) async {
@@ -830,18 +911,22 @@ class _SessionCard extends StatelessWidget {
     required this.durationController,
     required this.notesController,
     required this.saving,
+    required this.clearing,
     required this.onStatusChanged,
     required this.onSave,
     required this.onMarkRest,
+    required this.onClearProgress,
   });
 
   final SessionStatus status;
   final TextEditingController durationController;
   final TextEditingController notesController;
   final bool saving;
+  final bool clearing;
   final ValueChanged<SessionStatus> onStatusChanged;
   final VoidCallback onSave;
   final VoidCallback onMarkRest;
+  final VoidCallback onClearProgress;
 
   @override
   Widget build(BuildContext context) {
@@ -912,6 +997,24 @@ class _SessionCard extends StatelessWidget {
                   ),
                 ),
               ],
+            ),
+            const SizedBox(height: 8),
+            SizedBox(
+              width: double.infinity,
+              child: OutlinedButton.icon(
+                onPressed: clearing ? null : onClearProgress,
+                icon: clearing
+                    ? const SizedBox(
+                        width: 16,
+                        height: 16,
+                        child: CircularProgressIndicator(strokeWidth: 2),
+                      )
+                    : const Icon(Icons.delete_forever_outlined),
+                label: Text(clearing ? 'Clearing...' : 'Clear Progress'),
+                style: OutlinedButton.styleFrom(
+                  foregroundColor: Theme.of(context).colorScheme.error,
+                ),
+              ),
             ),
           ],
         ),

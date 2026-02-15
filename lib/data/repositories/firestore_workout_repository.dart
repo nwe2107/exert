@@ -111,6 +111,7 @@ class FirestoreWorkoutRepository implements WorkoutRepository {
 
   @override
   Future<void> deleteSession(Id sessionId) async {
+    await deleteEntriesForSession(sessionId);
     await _sessions.doc(sessionId.toString()).delete();
   }
 
