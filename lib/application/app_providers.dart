@@ -7,6 +7,7 @@ import 'package:isar/isar.dart';
 
 import 'theme_preference.dart';
 import '../core/utils/date_utils.dart';
+import '../data/local/saved_workout_template_store.dart';
 import '../data/local/theme_preference_store.dart';
 import '../data/models/account_profile_model.dart';
 import '../data/models/exercise_entry_model.dart';
@@ -19,6 +20,7 @@ import '../data/repositories/isar_exercise_template_repository.dart';
 import '../data/repositories/isar_user_profile_repository.dart';
 import '../data/repositories/isar_workout_repository.dart';
 import '../data/repositories/firestore_exercise_template_repository.dart';
+import '../data/repositories/firestore_saved_workout_template_store.dart';
 import '../data/repositories/firestore_workout_repository.dart';
 import '../data/repositories/firestore_account_profile_repository.dart';
 import '../data/repositories/in_memory_account_profile_repository.dart';
@@ -104,6 +106,26 @@ final todayProvider = Provider<DateTime>((ref) {
 
 final themePreferenceStoreProvider = Provider<ThemePreferenceStore>((ref) {
   return FileThemePreferenceStore();
+});
+
+final savedWorkoutTemplateStoreProvider = Provider<SavedWorkoutTemplateStore>((
+  ref,
+) {
+  final firebaseApp = ref.watch(firebaseAppProvider);
+  final session = ref.watch(authSessionProvider).value;
+  final firebaseUser = firebaseApp != null
+      ? FirebaseAuth.instanceFor(app: firebaseApp).currentUser
+      : null;
+  final userId = session?.userId ?? firebaseUser?.uid;
+
+  if (firebaseApp != null && userId != null) {
+    return FirestoreSavedWorkoutTemplateStore(
+      FirebaseFirestore.instanceFor(app: firebaseApp),
+      userId,
+    );
+  }
+
+  return FileSavedWorkoutTemplateStore();
 });
 
 final themePreferenceProvider =

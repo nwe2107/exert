@@ -5,6 +5,7 @@ import 'package:intl/intl.dart';
 import '../../../application/app_providers.dart';
 import '../../../core/enums/app_enums.dart';
 import '../../../core/utils/date_utils.dart';
+import '../../../data/local/saved_workout_template_store.dart';
 import '../../../data/models/exercise_entry_model.dart';
 import '../../../data/models/exercise_template_model.dart';
 import '../../../data/models/workout_session_model.dart';
@@ -25,8 +26,10 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   final _notesController = TextEditingController();
 
   SessionStatus _status = SessionStatus.success;
-  int? _hydratedSessionId;
+  String? _hydratedSessionFingerprint;
   bool _savingSession = false;
+  bool _savingTemplate = false;
+  bool _applyingTemplate = false;
 
   @override
   void dispose() {
@@ -40,6 +43,7 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     final day = normalizeLocalDate(widget.date);
     final sessionAsync = ref.watch(sessionForDateProvider(day));
     final templatesAsync = ref.watch(allTemplatesProvider);
+    final savedTemplatesAsync = ref.watch(savedWorkoutTemplatesProvider);
 
     final dateLabel = DateFormat.yMMMMEEEEd().format(day);
 
@@ -71,15 +75,50 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
                     _quickStatus(day, SessionStatus.rest, existing: session),
               ),
               const SizedBox(height: 16),
-              Row(
+              Text('Entries', style: Theme.of(context).textTheme.titleMedium),
+              const SizedBox(height: 8),
+              Wrap(
+                spacing: 8,
+                runSpacing: 8,
                 children: [
-                  Text(
-                    'Entries',
-                    style: Theme.of(context).textTheme.titleMedium,
+                  OutlinedButton.icon(
+                    onPressed: _savingTemplate
+                        ? null
+                        : () => _saveCurrentWorkoutTemplate(day),
+                    icon: _savingTemplate
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.bookmark_add_outlined),
+                    label: Text(_savingTemplate ? 'Saving...' : 'Save Workout'),
                   ),
-                  const Spacer(),
+                  OutlinedButton.icon(
+                    onPressed:
+                        templatesAsync is AsyncData &&
+                            savedTemplatesAsync is AsyncData &&
+                            !_applyingTemplate
+                        ? () => _selectAndApplySavedWorkout(
+                            date: day,
+                            session: session,
+                            templates: templatesAsync.value!,
+                            savedTemplates: savedTemplatesAsync.value!,
+                          )
+                        : null,
+                    icon: _applyingTemplate
+                        ? const SizedBox(
+                            width: 16,
+                            height: 16,
+                            child: CircularProgressIndicator(strokeWidth: 2),
+                          )
+                        : const Icon(Icons.history),
+                    label: Text(
+                      _applyingTemplate ? 'Applying...' : 'Use Saved',
+                    ),
+                  ),
                   FilledButton.tonalIcon(
-                    onPressed: templatesAsync is AsyncData
+                    onPressed: templatesAsync is AsyncData && !_applyingTemplate
                         ? () => _addOrEditEntry(
                             date: day,
                             session: session,
@@ -184,12 +223,12 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
   }
 
   void _hydrateSessionFields(WorkoutSessionModel? session) {
-    final nextSessionId = session?.id;
-    if (_hydratedSessionId == nextSessionId) {
+    final nextFingerprint = _sessionFingerprint(session);
+    if (_hydratedSessionFingerprint == nextFingerprint) {
       return;
     }
 
-    _hydratedSessionId = nextSessionId;
+    _hydratedSessionFingerprint = nextFingerprint;
 
     if (session == null) {
       _status = SessionStatus.success;
@@ -201,6 +240,19 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     _status = session.status;
     _durationController.text = session.durationMinutes?.toString() ?? '';
     _notesController.text = session.notes ?? '';
+  }
+
+  String _sessionFingerprint(WorkoutSessionModel? session) {
+    if (session == null) {
+      return 'none';
+    }
+    return [
+      session.id,
+      session.status.name,
+      session.durationMinutes,
+      session.notes ?? '',
+      session.updatedAt.millisecondsSinceEpoch,
+    ].join('|');
   }
 
   Future<void> _saveSession(
@@ -261,6 +313,388 @@ class _WorkoutLogScreenState extends ConsumerState<WorkoutLogScreen> {
     ScaffoldMessenger.of(context).showSnackBar(
       SnackBar(content: Text('Day marked as ${status.label.toLowerCase()}.')),
     );
+  }
+
+  Future<void> _saveCurrentWorkoutTemplate(DateTime date) async {
+    setState(() {
+      _savingTemplate = true;
+    });
+
+    try {
+      final repository = ref.read(workoutRepositoryProvider);
+      final store = ref.read(savedWorkoutTemplateStoreProvider);
+      final session = await repository.getSessionByDate(date);
+
+      if (session == null) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Save the session first, then save it as a reusable workout.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final entries = await repository.getEntriesForSession(session.id);
+      if (entries.isEmpty) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Add at least one exercise entry before saving.'),
+          ),
+        );
+        return;
+      }
+
+      if (!mounted) {
+        return;
+      }
+      final suggestedName = 'Workout ${DateFormat.MMMd().format(date)}';
+      final name = await _promptTemplateName(initialName: suggestedName);
+      if (name == null) {
+        return;
+      }
+
+      final existingTemplates = await store.loadTemplates();
+      final existingTemplate = _findTemplateByName(
+        templates: existingTemplates,
+        name: name,
+      );
+      final now = DateTime.now();
+
+      final template = SavedWorkoutTemplate(
+        id: existingTemplate?.id ?? generateSavedWorkoutTemplateId(),
+        name: name,
+        status: _status,
+        durationMinutes: int.tryParse(_durationController.text.trim()),
+        notes: _nullIfEmpty(_notesController.text),
+        entries: entries
+            .map(_toSavedWorkoutEntryTemplate)
+            .toList(growable: false),
+        createdAt: existingTemplate?.createdAt ?? now,
+        updatedAt: now,
+      );
+
+      await store.saveTemplate(template);
+      ref.invalidate(savedWorkoutTemplatesProvider);
+
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            existingTemplate == null
+                ? 'Saved "${template.name}" for later use.'
+                : 'Updated saved workout "${template.name}".',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to save workout template: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _savingTemplate = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _selectAndApplySavedWorkout({
+    required DateTime date,
+    required WorkoutSessionModel? session,
+    required List<ExerciseTemplateModel> templates,
+    required List<SavedWorkoutTemplate> savedTemplates,
+  }) async {
+    if (savedTemplates.isEmpty) {
+      ScaffoldMessenger.of(
+        context,
+      ).showSnackBar(const SnackBar(content: Text('No saved workouts yet.')));
+      return;
+    }
+
+    final templatesById = {
+      for (final template in templates) template.id: template.name,
+    };
+
+    final selectedTemplate = await showModalBottomSheet<SavedWorkoutTemplate>(
+      context: context,
+      isScrollControlled: true,
+      builder: (context) {
+        return _SavedWorkoutPickerSheet(
+          templates: savedTemplates,
+          exerciseNamesByTemplateId: templatesById,
+        );
+      },
+    );
+    if (selectedTemplate == null) {
+      return;
+    }
+
+    await _applySavedWorkoutTemplate(
+      date: date,
+      session: session,
+      templates: templates,
+      savedTemplate: selectedTemplate,
+    );
+  }
+
+  Future<void> _applySavedWorkoutTemplate({
+    required DateTime date,
+    required WorkoutSessionModel? session,
+    required List<ExerciseTemplateModel> templates,
+    required SavedWorkoutTemplate savedTemplate,
+  }) async {
+    setState(() {
+      _applyingTemplate = true;
+    });
+
+    try {
+      final repository = ref.read(workoutRepositoryProvider);
+      final templateLookup = {
+        for (final template in templates) template.id: template,
+      };
+      final applicableEntries =
+          <MapEntry<SavedWorkoutEntryTemplate, ExerciseTemplateModel>>[];
+      var skipped = 0;
+      for (final entryTemplate in savedTemplate.entries) {
+        final sourceTemplate = templateLookup[entryTemplate.exerciseTemplateId];
+        if (sourceTemplate == null) {
+          skipped += 1;
+          continue;
+        }
+        applicableEntries.add(MapEntry(entryTemplate, sourceTemplate));
+      }
+
+      if (applicableEntries.isEmpty) {
+        if (!mounted) {
+          return;
+        }
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'Saved workout can’t be applied because its exercises are missing from your library.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final resolvedSession = await _ensureSession(date, session);
+      final existingEntries = await repository.getEntriesForSession(
+        resolvedSession.id,
+      );
+
+      if (existingEntries.isNotEmpty) {
+        final shouldReplace = await _confirmReplaceCurrentEntries();
+        if (!shouldReplace) {
+          return;
+        }
+      }
+
+      await repository.deleteEntriesForSession(resolvedSession.id);
+
+      resolvedSession
+        ..status = savedTemplate.status
+        ..durationMinutes = savedTemplate.durationMinutes
+        ..notes = _nullIfEmpty(savedTemplate.notes);
+      await repository.saveSession(resolvedSession);
+
+      var copied = 0;
+      for (final templateEntry in applicableEntries) {
+        final entryTemplate = templateEntry.key;
+        final sourceTemplate = templateEntry.value;
+        final entry = ExerciseEntryModel()
+          ..workoutSessionId = resolvedSession.id
+          ..exerciseTemplateId = sourceTemplate.id
+          ..schemeType = entryTemplate.schemeType
+          ..supersetGroupId = _nullIfEmpty(entryTemplate.supersetGroupId)
+          ..feltDifficulty = entryTemplate.feltDifficulty
+          ..restSeconds = entryTemplate.restSeconds
+          ..notes = _nullIfEmpty(entryTemplate.notes)
+          ..sets = _setsFromSavedTemplate(entryTemplate)
+          ..muscleGroup = sourceTemplate.muscleGroup
+          ..specificMuscle = sourceTemplate.specificMuscle
+          ..muscleGroups = sourceTemplate.resolveMuscleGroups()
+          ..specificMuscles = sourceTemplate.resolveSpecificMuscles();
+
+        await repository.saveEntry(entry);
+        copied += 1;
+      }
+
+      _hydratedSessionFingerprint = null;
+
+      if (!mounted) {
+        return;
+      }
+
+      if (copied == 0) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text(
+              'No entries could be applied. Add missing exercises to your library first.',
+            ),
+          ),
+        );
+        return;
+      }
+
+      final skippedText = skipped == 0
+          ? ''
+          : ' Skipped $skipped missing exercise template(s).';
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(
+            'Applied "${savedTemplate.name}" with $copied entries.$skippedText',
+          ),
+        ),
+      );
+    } catch (error) {
+      if (!mounted) {
+        return;
+      }
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text('Failed to apply saved workout: $error')),
+      );
+    } finally {
+      if (mounted) {
+        setState(() {
+          _applyingTemplate = false;
+        });
+      }
+    }
+  }
+
+  Future<String?> _promptTemplateName({required String initialName}) async {
+    final controller = TextEditingController(text: initialName);
+    final result = await showDialog<String>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Save Workout'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            decoration: const InputDecoration(
+              labelText: 'Saved workout name',
+              border: OutlineInputBorder(),
+            ),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () {
+                final trimmed = controller.text.trim();
+                if (trimmed.isEmpty) {
+                  return;
+                }
+                Navigator.of(context).pop(trimmed);
+              },
+              child: const Text('Save'),
+            ),
+          ],
+        );
+      },
+    );
+    controller.dispose();
+    return result;
+  }
+
+  Future<bool> _confirmReplaceCurrentEntries() async {
+    final result = await showDialog<bool>(
+      context: context,
+      builder: (context) {
+        return AlertDialog(
+          title: const Text('Replace current entries?'),
+          content: const Text(
+            'Applying a saved workout will replace all current entries for this day.',
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.of(context).pop(false),
+              child: const Text('Cancel'),
+            ),
+            FilledButton(
+              onPressed: () => Navigator.of(context).pop(true),
+              child: const Text('Replace'),
+            ),
+          ],
+        );
+      },
+    );
+    return result ?? false;
+  }
+
+  SavedWorkoutTemplate? _findTemplateByName({
+    required List<SavedWorkoutTemplate> templates,
+    required String name,
+  }) {
+    final normalized = name.trim().toLowerCase();
+    for (final template in templates) {
+      if (template.name.trim().toLowerCase() == normalized) {
+        return template;
+      }
+    }
+    return null;
+  }
+
+  SavedWorkoutEntryTemplate _toSavedWorkoutEntryTemplate(
+    ExerciseEntryModel entry,
+  ) {
+    return SavedWorkoutEntryTemplate(
+      exerciseTemplateId: entry.exerciseTemplateId,
+      schemeType: entry.schemeType,
+      feltDifficulty: entry.feltDifficulty,
+      supersetGroupId: _nullIfEmpty(entry.supersetGroupId),
+      restSeconds: entry.restSeconds,
+      notes: _nullIfEmpty(entry.notes),
+      sets: entry.sets
+          .map(
+            (set) => SavedWorkoutSetTemplate(
+              reps: set.reps,
+              weight: set.weight,
+              durationSeconds: set.durationSeconds,
+              rpe: set.rpe,
+            ),
+          )
+          .toList(growable: false),
+    );
+  }
+
+  List<SetItemModel> _setsFromSavedTemplate(SavedWorkoutEntryTemplate entry) {
+    if (entry.sets.isEmpty) {
+      return [SetItemModel()..setNumber = 1];
+    }
+
+    return entry.sets
+        .asMap()
+        .entries
+        .map((item) {
+          final index = item.key;
+          final set = item.value;
+          return SetItemModel()
+            ..setNumber = index + 1
+            ..reps = set.reps
+            ..weight = set.weight
+            ..durationSeconds = set.durationSeconds
+            ..rpe = set.rpe;
+        })
+        .toList(growable: false);
   }
 
   Future<void> _addOrEditEntry({
@@ -483,6 +917,85 @@ class _SessionCard extends StatelessWidget {
         ),
       ),
     );
+  }
+}
+
+class _SavedWorkoutPickerSheet extends StatelessWidget {
+  const _SavedWorkoutPickerSheet({
+    required this.templates,
+    required this.exerciseNamesByTemplateId,
+  });
+
+  final List<SavedWorkoutTemplate> templates;
+  final Map<int, String> exerciseNamesByTemplateId;
+
+  @override
+  Widget build(BuildContext context) {
+    return SafeArea(
+      child: Padding(
+        padding: const EdgeInsets.fromLTRB(16, 16, 16, 24),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Text(
+              'Choose saved workout',
+              style: Theme.of(context).textTheme.titleLarge,
+            ),
+            const SizedBox(height: 8),
+            ConstrainedBox(
+              constraints: const BoxConstraints(maxHeight: 420),
+              child: ListView.separated(
+                shrinkWrap: true,
+                itemCount: templates.length,
+                separatorBuilder: (context, index) => const Divider(height: 1),
+                itemBuilder: (context, index) {
+                  final template = templates[index];
+                  final updatedAt = DateFormat.yMMMd().format(
+                    template.updatedAt.toLocal(),
+                  );
+                  final preview = _exercisePreview(template);
+
+                  return ListTile(
+                    contentPadding: EdgeInsets.zero,
+                    title: Text(template.name),
+                    subtitle: Text(
+                      '${template.entries.length} entries • Updated $updatedAt\n$preview',
+                    ),
+                    isThreeLine: true,
+                    trailing: const Icon(Icons.chevron_right),
+                    onTap: () => Navigator.of(context).pop(template),
+                  );
+                },
+              ),
+            ),
+          ],
+        ),
+      ),
+    );
+  }
+
+  String _exercisePreview(SavedWorkoutTemplate template) {
+    final names = <String>{};
+    for (final entry in template.entries) {
+      final name = exerciseNamesByTemplateId[entry.exerciseTemplateId];
+      if (name != null && name.isNotEmpty) {
+        names.add(name);
+      }
+    }
+
+    if (names.isEmpty) {
+      return 'Exercises are missing from your library.';
+    }
+
+    final ordered = names.toList(growable: false);
+    if (ordered.length <= 3) {
+      return ordered.join(' • ');
+    }
+
+    final firstThree = ordered.take(3).join(' • ');
+    final remaining = ordered.length - 3;
+    return '$firstThree +$remaining more';
   }
 }
 
